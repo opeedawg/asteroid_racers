@@ -1,4 +1,5 @@
 import 'package:asteroid_racers/src/models/game_feedback.dart';
+import 'package:asteroid_racers/src/models/game_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:asteroid_racers/src/controllers/feedback_controller.dart';
@@ -11,7 +12,9 @@ import 'package:asteroid_racers/src/models/alien.dart';
 class GamePage
     extends
         StatefulWidget {
+  final GameSettings settings;
   const GamePage({
+    required this.settings,
     super.key,
   });
 
@@ -29,6 +32,7 @@ class _GamePageState
         > {
   late GameController _controller;
   late FeedbackController _feedback;
+  bool _isInitializing = true;
 
   int _selectedColumn = 0;
   final FocusNode _focusNode = FocusNode();
@@ -40,8 +44,10 @@ class _GamePageState
     _focusNode.requestFocus();
   }
 
-  void _initializeGame() {
-    // 1. Create Players
+  // In lib/src/screens/game_page.dart
+
+  void _initializeGame() async {
+    // 1. Create Players and State
     final player1 = Player(
       name: "Player 1",
     );
@@ -49,21 +55,24 @@ class _GamePageState
       name: "Player 2",
     );
 
-    // 2. Create the GameState
+    // ----------------------------------------------------
+    // FIX: Use the settings object (widget.settings)
+    // ----------------------------------------------------
     final gameState = GameState.newGame(
-      boardSize: BoardSize.regular,
+      boardSize: widget.settings.boardSize,
       player1: player1,
       player2: player2,
     );
+    // ----------------------------------------------------
 
-    // 3. Create the controllers
+    // 2. Create the controllers
     _feedback = FeedbackController();
     _controller = GameController(
       gameState: gameState,
       feedback: _feedback,
     );
 
-    // 4. Set up listeners
+    // 3. Set up listeners (unchanged)
     _controller.addListener(
       _onGameStateChanged,
     );
@@ -75,14 +84,31 @@ class _GamePageState
       ),
     );
 
-    // 5. Set initial selected column to the first available one
-    _findNextAvailableLever(
-      1,
-    ); // Search right from column 0
+    // 4. Schedule settling *after* the first frame is built
+    WidgetsBinding.instance.addPostFrameCallback(
+      (
+        _,
+      ) async {
+        if (mounted) {
+          await _controller.settleBoard();
+          _findNextAvailableLever(
+            1,
+          );
+
+          setState(
+            () {
+              _isInitializing = false;
+            },
+          );
+        }
+      },
+    );
   }
 
   // This is our UI's refresh function
   void _onGameStateChanged() {
+    if (_isInitializing) return;
+
     setState(
       () {
         // Rebuild the widget

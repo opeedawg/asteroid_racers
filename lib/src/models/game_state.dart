@@ -4,7 +4,7 @@ import 'package:asteroid_racers/src/models/enums.dart';
 import 'package:asteroid_racers/src/models/player.dart';
 
 class GameState {
-  // --- Existing Properties ---
+  // --- Properties ---
   int width;
   int height;
   int alienCount;
@@ -29,10 +29,10 @@ class GameState {
   scores;
   late int lastMovedColumn;
 
-  // --- Add a Random instance ---
+  // --- Random Instance ---
   final _random = Random();
 
-  // --- Constructor ---
+  // --- Named Constructor ---
   GameState.newGame({
     required this.boardSize,
     required this.player1,
@@ -63,9 +63,8 @@ class GameState {
     );
   }
 
-  // --- UPDATED BOARD GENERATION ---
+  // --- Board Generation Logic ---
   void _generateBoard() {
-    // 1. Initialize an empty board
     board = List.generate(
       height,
       (
@@ -76,20 +75,18 @@ class GameState {
       ),
     );
 
-    // 2. Find the center column
     final int centerColumn =
         (width /
                 2)
             .floor();
 
-    // 3. Loop through every column (x)
     for (
       int x = 0;
       x <
           width;
       x++
     ) {
-      // 4. Handle all fixed-pattern columns
+      // 1. Handle all fixed-pattern columns
 
       // Center: 2-1-2-1 pattern (A, A, E, A, A, E, ...)
       if (x ==
@@ -107,7 +104,7 @@ class GameState {
               ? TileType.empty
               : TileType.asteroid;
         }
-        continue; // Go to the next column
+        continue;
       }
 
       // Center-Adjacent AND Outer Columns: 1-2-1-2 pattern (E, A, A, E, A, A, ...)
@@ -118,11 +115,10 @@ class GameState {
               centerColumn +
                   1 ||
           x ==
-              0 || // <-- FIX: First column
+              0 ||
           x ==
               width -
                   1) {
-        // <-- FIX: Last column
         for (
           int y = 0;
           y <
@@ -136,14 +132,14 @@ class GameState {
               ? TileType.asteroid
               : TileType.empty;
         }
-        continue; // Go to the next column
+        continue;
       }
 
-      // 5. Handle the random columns
+      // 2. Handle the random columns
       int currentGap = 0;
-      int currentAsteroidRun = 0; // <-- FIX: Max density check
-      const int maxGap = 6; // Max empty spaces in a row
-      const int maxAsteroidRun = 8; // <-- FIX: Max asteroids in a row
+      int currentAsteroidRun = 0;
+      const int maxGap = 6;
+      const int maxAsteroidRun = 8;
 
       for (
         int y = 0;
@@ -153,18 +149,13 @@ class GameState {
       ) {
         bool placeAsteroid = false;
 
-        // Rule: Max gap of 6
         if (currentGap >=
             maxGap) {
           placeAsteroid = true;
-        }
-        // Rule: Max run of 8 asteroids
-        else if (currentAsteroidRun >=
+        } else if (currentAsteroidRun >=
             maxAsteroidRun) {
           placeAsteroid = false;
-        }
-        // Otherwise, use our probability
-        else {
+        } else {
           placeAsteroid =
               _random.nextDouble() <
               0.6;
@@ -173,41 +164,38 @@ class GameState {
         if (placeAsteroid) {
           board[y][x] = TileType.asteroid;
           currentGap = 0;
-          currentAsteroidRun++; // Increment asteroid run
+          currentAsteroidRun++;
         } else {
           board[y][x] = TileType.empty;
           currentGap++;
-          currentAsteroidRun = 0; // Reset asteroid run
+          currentAsteroidRun = 0;
         }
       }
     }
   }
 
+  // --- Alien Placement Logic (Spread Out) ---
   void _placeAliens(
     int alienCount,
   ) {
-    // 1. Initialize the list
     aliens = [];
 
-    // 2. Define territories
     final int centerColumn =
         (width /
                 2)
             .floor();
 
-    // Player 1's territory (e.g., 0 to 8)
+    // Player 1's territory (0 to center-1)
     int p1AliensPlaced = 0;
     while (p1AliensPlaced <
         alienCount) {
-      // Find a random spot in the entire left-half
       final int x = _random.nextInt(
         centerColumn,
-      ); // 0 to center-1
+      );
       final int y = _random.nextInt(
         height,
       );
 
-      // Check if spot is empty
       final bool isOccupied =
           board[y][x] ==
               TileType.asteroid ||
@@ -233,7 +221,7 @@ class GameState {
       }
     }
 
-    // Player 2's territory (e.g., 10 to 18)
+    // Player 2's territory (center+1 to width-1)
     int p2AliensPlaced = 0;
     final int p2ZoneStartX =
         centerColumn +
@@ -244,7 +232,6 @@ class GameState {
 
     while (p2AliensPlaced <
         alienCount) {
-      // Find a random spot in the entire right-half
       final int x =
           p2ZoneStartX +
           _random.nextInt(
@@ -254,7 +241,6 @@ class GameState {
         height,
       );
 
-      // Check if spot is empty
       final bool isOccupied =
           board[y][x] ==
               TileType.asteroid ||
@@ -281,7 +267,7 @@ class GameState {
     }
   }
 
-  // --- Static Helper Methods (unchanged) ---
+  // --- Static Helper Methods ---
   static int _getAlienCountSize(
     BoardSize size,
   ) {
@@ -289,7 +275,7 @@ class GameState {
       case BoardSize.small:
         return 8;
       case BoardSize.regular:
-        return 12; // The classic Mice Men size
+        return 12;
       case BoardSize.large:
         return 16;
       case BoardSize.extraLarge:
@@ -302,13 +288,13 @@ class GameState {
   ) {
     switch (size) {
       case BoardSize.small:
-        return 13; // Must be odd
+        return 13;
       case BoardSize.regular:
-        return 19; // The classic Mice Men size
+        return 19;
       case BoardSize.large:
-        return 25; // Must be odd
+        return 25;
       case BoardSize.extraLarge:
-        return 35; // Must be odd
+        return 35;
     }
   }
 
@@ -319,7 +305,7 @@ class GameState {
       case BoardSize.small:
         return 9;
       case BoardSize.regular:
-        return 13; // The classic Mice Men size
+        return 13;
       case BoardSize.large:
         return 15;
       case BoardSize.extraLarge:

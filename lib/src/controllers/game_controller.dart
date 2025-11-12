@@ -10,24 +10,36 @@ class GameController
         ChangeNotifier {
   GameState gameState;
   final FeedbackController feedback;
-
+  // Flag to prevent double-tapping while physics is running
+  bool _isProcessingMove = false;
+  bool get isProcessingMove => _isProcessingMove;
   GameController({
     required this.gameState,
     required this.feedback,
   });
 
   /// Runs the physics engine once to "settle" the board.
-  void settleBoard() {
-    _runPhysicsCycle();
+  Future<
+    void
+  >
+  settleBoard() async {
+    // <--- ADD async and Future<void>
+    await _runPhysicsCycle(); // <--- ADD await
     notifyListeners();
   }
 
   /// Attempts to make a move for the currently active player.
-  bool makeMove(
+  /// This method is now asynchronous.
+  Future<
+    bool
+  >
+  makeMove(
     int column,
     MoveDirection direction,
-  ) {
-    // 1. --- CHECK IF MOVE IS LEGAL ---
+  ) async {
+    // 1. Check Move Legality & Global Lock
+    if (_isProcessingMove) return false;
+
     final LeverState state = getLeverState(
       column,
       gameState,
@@ -50,7 +62,7 @@ class GameController
       return false;
     }
 
-    // 2. --- EXECUTE THE MOVE ---
+    _isProcessingMove = true; // Lock the controls
     feedback.add(
       FeedbackType.success,
       "Move accepted.",
@@ -61,9 +73,15 @@ class GameController
       column,
       direction,
     );
+    notifyListeners(); // Render the column shift immediately
+    await Future.delayed(
+      const Duration(
+        milliseconds: GameSpeed.delayMs,
+      ),
+    );
 
     // --- Physics Step 2: Run the full settle logic ---
-    _runPhysicsCycle();
+    await _runPhysicsCycle();
 
     // 3. --- UPDATE GAME STATE FOR NEXT TURN ---
     gameState.lastMovedColumn = column;
@@ -73,13 +91,16 @@ class GameController
         ? gameState.player2
         : gameState.player1;
 
-    notifyListeners();
+    _isProcessingMove = false; // Unlock controls
+    notifyListeners(); // Final render and turn update
     return true;
   }
 
-  /// Runs the 4-step physics/settle process.
-  void _runPhysicsCycle() {
-    // Get players based on *current* turn
+  /// Runs the 4-step physics/settle process until the board is completely stable.
+  Future<
+    void
+  >
+  _runPhysicsCycle() async {
     final Player mover = gameState.currentPlayer;
     final Player otherPlayer =
         (mover ==
@@ -91,31 +112,39 @@ class GameController
     do {
       actionWasTaken = false;
 
-      // --- 1. GRAVITY PASS ---
+      // 1. GRAVITY PASS
       if (_applyGravity()) {
         actionWasTaken = true;
       }
 
-      // --- 2. MOVER PASS ---
+      // 2. MOVER PASS
       if (_moveAliens(
         mover,
       )) {
         actionWasTaken = true;
       }
 
-      // --- 3. OPPONENT PASS ---
+      // 3. OPPONENT PASS
       if (_moveAliens(
         otherPlayer,
       )) {
         actionWasTaken = true;
       }
+
+      // If any action was taken, render the new state and wait.
+      if (actionWasTaken) {
+        notifyListeners();
+        await Future.delayed(
+          const Duration(
+            milliseconds: GameSpeed.delayMs,
+          ),
+        );
+      }
     } while (actionWasTaken);
 
-    // --- 4. SCORE ---
-    // The board is now 100% stable. We can score.
+    // 4. SCORE
     _checkAndScoreAliens();
   }
-
   // --- Private Helper Methods (The "Physics") ---
 
   /// 1. SHIFT COLUMN (Returns void)

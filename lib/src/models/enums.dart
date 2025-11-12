@@ -28,3 +28,16 @@ enum LeverState {
   available, // Player has an alien, move is legal. Draw active.
   locked, // Player has an alien, but it's the last-moved column. Draw disabled.
 }
+
+/// Defines the difficulty level for the Minimax AI.
+enum Difficulty {
+  easy,
+  normal,
+  hard,
+  god,
+}
+
+class GameSpeed {
+  // Delay in milliseconds for each physics "tick"
+  static const int delayMs = 200; // 100 milliseconds = 5 FPS
+}

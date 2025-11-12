@@ -1,6 +1,7 @@
+// In lib/main.dart
+
 import 'package:flutter/material.dart';
-// Import our new screen
-import 'package:asteroid_racers/src/screens/game_page.dart';
+import 'package:asteroid_racers/src/screens/settings_screen.dart'; // <-- NEW IMPORT
 
 void
 main() {
@@ -25,9 +26,9 @@ class MyApp
       theme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
-        fontFamily: 'Courier', // Use a monospaced font by default
+        fontFamily: 'Courier',
       ),
-      home: const GamePage(), // Start with our clean game page
+      home: const SettingsScreen(), // <-- START HERE!
     );
   }
 }
