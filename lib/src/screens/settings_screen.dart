@@ -1,3 +1,4 @@
+import 'package:asteroid_racers/src/models/game_speed.dart';
 import 'package:flutter/material.dart';
 import 'package:asteroid_racers/src/models/enums.dart';
 import 'package:asteroid_racers/src/models/game_settings.dart';
@@ -26,6 +27,7 @@ class _SettingsScreenState
   BoardSize _selectedBoardSize = BoardSize.regular;
   int _selectedPlayerCount = 1;
   Difficulty _selectedDifficulty = Difficulty.normal;
+  GameSpeedLevel _selectedGameSpeed = GameSpeedLevel.normal;
 
   @override
   Widget build(
@@ -60,6 +62,10 @@ class _SettingsScreenState
                 ),
                 _buildDifficultyControls(),
               ],
+              _buildTitle(
+                'GAME SPEED',
+              ),
+              _buildGameSpeedControls(),
               const SizedBox(
                 height: 40,
               ),
@@ -257,6 +263,67 @@ class _SettingsScreenState
     );
   }
 
+  Widget _buildGameSpeedControls() {
+    // Calculate the index for the current level (0=VerySlow, 4=VeryFast)
+    final double sliderValue = _selectedGameSpeed.index.toDouble();
+    final String description = GameSpeed.getDescription(
+      _selectedGameSpeed,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Very Slow',
+            ),
+            Text(
+              'Very Fast',
+            ),
+          ],
+        ),
+        Slider(
+          value: sliderValue,
+          min: 0.0,
+          max:
+              (GameSpeedLevel.values.length -
+                      1)
+                  .toDouble(), // 4.0
+          divisions:
+              GameSpeedLevel.values.length -
+              1, // 4 divisions
+          label: _selectedGameSpeed.name.toUpperCase(),
+          onChanged:
+              (
+                double newValue,
+              ) {
+                setState(
+                  () {
+                    // Map the double value back to the enum index
+                    _selectedGameSpeed = GameSpeedLevel.values[newValue.round()];
+                  },
+                );
+              },
+        ),
+        // Display the description below the slider
+        Padding(
+          padding: const EdgeInsets.only(
+            top: 8.0,
+          ),
+          child: Text(
+            description,
+            style: TextStyle(
+              color: Colors.white54, // Muted text
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStartButton(
     BuildContext context,
   ) {
@@ -275,8 +342,8 @@ class _SettingsScreenState
           final settings = GameSettings(
             boardSize: _selectedBoardSize,
             playerCount: _selectedPlayerCount,
-            // Only relevant if playerCount == 1, but we store it anyway
             difficulty: _selectedDifficulty,
+            gameSpeed: _selectedGameSpeed,
           );
 
           Navigator.of(

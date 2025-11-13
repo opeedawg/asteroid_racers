@@ -37,7 +37,11 @@ enum Difficulty {
   god,
 }
 
-class GameSpeed {
-  // Delay in milliseconds for each physics "tick"
-  static const int delayMs = 200; // 100 milliseconds = 5 FPS
+/// Defines game speed levels.
+enum GameSpeedLevel {
+  verySlow,
+  slow,
+  normal,
+  fast,
+  veryFast,
 }

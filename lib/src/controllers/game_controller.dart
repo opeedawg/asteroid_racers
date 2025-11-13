@@ -1,3 +1,4 @@
+import 'package:asteroid_racers/src/models/game_speed.dart';
 import 'package:flutter/foundation.dart';
 import 'package:asteroid_racers/src/controllers/feedback_controller.dart';
 import 'package:asteroid_racers/src/models/alien.dart';
@@ -13,9 +14,12 @@ class GameController
   // Flag to prevent double-tapping while physics is running
   bool _isProcessingMove = false;
   bool get isProcessingMove => _isProcessingMove;
+  final GameSpeedLevel gameSpeed;
+
   GameController({
     required this.gameState,
     required this.feedback,
+    required this.gameSpeed,
   });
 
   /// Runs the physics engine once to "settle" the board.
@@ -75,8 +79,10 @@ class GameController
     );
     notifyListeners(); // Render the column shift immediately
     await Future.delayed(
-      const Duration(
-        milliseconds: GameSpeed.delayMs,
+      Duration(
+        milliseconds: GameSpeed.getDelay(
+          gameSpeed,
+        ),
       ),
     );
 
@@ -135,8 +141,10 @@ class GameController
       if (actionWasTaken) {
         notifyListeners();
         await Future.delayed(
-          const Duration(
-            milliseconds: GameSpeed.delayMs,
+          Duration(
+            milliseconds: GameSpeed.getDelay(
+              gameSpeed,
+            ),
           ),
         );
       }

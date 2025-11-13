@@ -1,5 +1,4 @@
-import 'package:asteroid_racers/src/models/game_feedback.dart';
-import 'package:asteroid_racers/src/models/game_settings.dart';
+import 'dart:async'; // Required for Future.delayed and async/await
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:asteroid_racers/src/controllers/feedback_controller.dart';
@@ -8,6 +7,8 @@ import 'package:asteroid_racers/src/models/enums.dart';
 import 'package:asteroid_racers/src/models/game_state.dart';
 import 'package:asteroid_racers/src/models/player.dart';
 import 'package:asteroid_racers/src/models/alien.dart';
+import 'package:asteroid_racers/src/models/game_feedback.dart';
+import 'package:asteroid_racers/src/models/game_settings.dart'; // NEW/RETAINED
 
 class GamePage
     extends
@@ -44,35 +45,33 @@ class _GamePageState
     _focusNode.requestFocus();
   }
 
-  // In lib/src/screens/game_page.dart
-
   void _initializeGame() async {
-    // 1. Create Players and State
+    // 1. Create Players and GameState
     final player1 = Player(
-      name: "Player 1",
+      namerTag: "Player 1", // Use namerTag
     );
     final player2 = Player(
-      name: "Player 2",
+      namerTag: "Player 2", // Use namerTag
     );
 
-    // ----------------------------------------------------
-    // FIX: Use the settings object (widget.settings)
-    // ----------------------------------------------------
     final gameState = GameState.newGame(
       boardSize: widget.settings.boardSize,
       player1: player1,
       player2: player2,
     );
-    // ----------------------------------------------------
 
     // 2. Create the controllers
     _feedback = FeedbackController();
+
+    // --- FIX: Pass gameSpeed from settings ---
     _controller = GameController(
       gameState: gameState,
       feedback: _feedback,
+      gameSpeed: widget.settings.gameSpeed,
     );
+    // ----------------------------------------
 
-    // 3. Set up listeners (unchanged)
+    // 3. Set up listeners
     _controller.addListener(
       _onGameStateChanged,
     );
@@ -105,18 +104,15 @@ class _GamePageState
     );
   }
 
-  // This is our UI's refresh function
+  // --- UI Logic Methods ---
+
   void _onGameStateChanged() {
     if (_isInitializing) return;
-
     setState(
-      () {
-        // Rebuild the widget
-      },
+      () {},
     );
   }
 
-  // This is our feedback listener
   void _onFeedback(
     GameFeedback feedback,
   ) {
@@ -155,11 +151,10 @@ class _GamePageState
   void _handleKeyEvent(
     KeyEvent event,
   ) {
-    // We only care about key down events
-    if (event
-        is! KeyDownEvent) {
+    if (_controller.isProcessingMove ||
+        event
+            is! KeyDownEvent)
       return;
-    }
 
     if (event.logicalKey ==
         LogicalKeyboardKey.arrowLeft) {
@@ -225,24 +220,35 @@ class _GamePageState
     BuildContext context,
   ) {
     return KeyboardListener(
+      // Using RawKeyboardListener for wider OS compatibility
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            "Asteroid Racers - Turn: ${_controller.gameState.currentPlayer.name}",
+            // Use namerTag here
+            "Asteroid Racers - Turn: ${_controller.gameState.currentPlayer.namerTag}",
           ),
         ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ..._buildBoardWidgets(),
-              const SizedBox(
-                height: 20,
-              ),
-              _buildLeverRow(),
-              _buildSelectorRow(),
+              if (_isInitializing)
+                const Padding(
+                  padding: EdgeInsets.all(
+                    32.0,
+                  ),
+                  child: CircularProgressIndicator(),
+                ),
+              if (!_isInitializing) ...[
+                ..._buildBoardWidgets(),
+                const SizedBox(
+                  height: 20,
+                ),
+                _buildLeverRow(),
+                _buildSelectorRow(),
+              ],
             ],
           ),
         ),
@@ -291,7 +297,7 @@ class _GamePageState
                   y,
           orElse: () => Alien(
             player: Player(
-              name: "temp",
+              namerTag: "temp",
             ),
             x: -1,
             y: -1,

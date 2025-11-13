@@ -1,7 +1,5 @@
-// In lib/main.dart
-
+import 'package:asteroid_racers/src/screens/launch_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:asteroid_racers/src/screens/settings_screen.dart'; // <-- NEW IMPORT
 
 void
 main() {
@@ -28,7 +26,7 @@ class MyApp
         primarySwatch: Colors.blue,
         fontFamily: 'Courier',
       ),
-      home: const SettingsScreen(), // <-- START HERE!
+      home: const LaunchScreen(),
     );
   }
 }

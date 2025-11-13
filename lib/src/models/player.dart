@@ -2,13 +2,15 @@ import 'package:uuid/uuid.dart'; // We'll need to add this package
 
 class Player {
   final String id;
-  String name;
-  // We can add more stats here later
-  // int wins;
-  // int losses;
-  // String country;
+  String namerTag;
+
+  // Placeholder fields for future backend use
+  final bool isAuthenticated;
+  final String? passwordHash;
 
   Player({
-    required this.name,
-  }) : id = Uuid().v4(); // Auto-generate a unique ID
+    required this.namerTag,
+    this.isAuthenticated = false,
+    this.passwordHash = "",
+  }) : id = const Uuid().v4();
 }
