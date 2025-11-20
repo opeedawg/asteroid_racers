@@ -1,13 +1,21 @@
-import 'package:asteroid_racers/src/models/game_speed.dart';
 import 'package:flutter/material.dart';
 import 'package:asteroid_racers/src/models/enums.dart';
 import 'package:asteroid_racers/src/models/game_settings.dart';
+import 'package:asteroid_racers/src/models/game_speed.dart'; // Import GameSpeed utility
+import 'package:asteroid_racers/src/models/game_theme.dart'; // Import GameTheme model
 import 'package:asteroid_racers/src/screens/game_page.dart';
+import 'package:asteroid_racers/src/models/player.dart';
 
 class SettingsScreen
     extends
         StatefulWidget {
+  // We accept the players from the LaunchScreen
+  final Player player1;
+  final Player? player2; // Optional, usually created dynamically here based on settings
+
   const SettingsScreen({
+    required this.player1,
+    this.player2,
     super.key,
   });
 
@@ -23,11 +31,14 @@ class _SettingsScreenState
         State<
           SettingsScreen
         > {
-  // --- Current Selections (Defaulted) ---
+  // --- Game Configuration State ---
   BoardSize _selectedBoardSize = BoardSize.regular;
-  int _selectedPlayerCount = 1;
-  Difficulty _selectedDifficulty = Difficulty.normal;
   GameSpeedLevel _selectedGameSpeed = GameSpeedLevel.normal;
+
+  // --- Audio & Visual State ---
+  bool _soundOn = true;
+  double _volumeLevel = 80.0;
+  ThemeOption _selectedTheme = ThemeOption.classic;
 
   @override
   Widget build(
@@ -51,26 +62,35 @@ class _SettingsScreenState
                 'BOARD SIZE',
               ),
               _buildBoardSizeControls(),
-              _buildTitle(
-                'NUMBER OF PLAYERS',
-              ),
-              _buildPlayerCountControls(),
-              if (_selectedPlayerCount ==
-                  1) ...[
-                _buildTitle(
-                  'AI DIFFICULTY',
-                ),
-                _buildDifficultyControls(),
-              ],
+
               _buildTitle(
                 'GAME SPEED',
               ),
               _buildGameSpeedControls(),
+
+              const Divider(
+                height: 40,
+                thickness: 2,
+              ),
+
+              _buildTitle(
+                'AUDIO SETTINGS',
+              ),
+              _buildSoundControls(),
+
+              _buildTitle(
+                'VISUAL THEME',
+              ),
+              _buildThemeControls(),
+
               const SizedBox(
                 height: 40,
               ),
               _buildStartButton(
                 context,
+              ),
+              const SizedBox(
+                height: 20,
               ),
             ],
           ),
@@ -79,7 +99,7 @@ class _SettingsScreenState
     );
   }
 
-  // --- Utility Builder Methods ---
+  // --- UI Builders ---
 
   Widget _buildTitle(
     String title,
@@ -131,122 +151,8 @@ class _SettingsScreenState
                           );
                         }
                       },
-                  // --- Applying the color style to the text ---
                   child: Text(
                     size.name.toUpperCase(),
-                    style: TextStyle(
-                      color: isSelected
-                          ? color
-                          : Colors.white70,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                  // ---------------------------------------------
-                ),
-          );
-        },
-      ).toList(),
-    );
-  }
-
-  Widget _buildPlayerCountControls() {
-    return Row(
-      children:
-          [
-            1,
-            2,
-          ].map(
-            (
-              count,
-            ) {
-              final isSelected =
-                  count ==
-                  _selectedPlayerCount;
-              // Player 1 is Blue, Player 2 is Red
-              final color =
-                  count ==
-                      1
-                  ? Colors.blueAccent
-                  : Colors.redAccent;
-
-              return Expanded(
-                child:
-                    RadioMenuButton<
-                      int
-                    >(
-                      value: count,
-                      groupValue: _selectedPlayerCount,
-                      onChanged:
-                          (
-                            int? value,
-                          ) {
-                            if (value !=
-                                null) {
-                              setState(
-                                () => _selectedPlayerCount = value,
-                              );
-                            }
-                          },
-                      // Applying the color style to the text
-                      child: Text(
-                        '$count Player${count > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          color: isSelected
-                              ? color
-                              : Colors.white70,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-              );
-            },
-          ).toList(),
-    );
-  }
-
-  Widget _buildDifficultyControls() {
-    // This Column stacks the buttons vertically
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start, // Align to the left
-      children: Difficulty.values.map(
-        (
-          difficulty,
-        ) {
-          final isSelected =
-              difficulty ==
-              _selectedDifficulty;
-          final color = _getColorForDifficulty(
-            difficulty,
-          );
-
-          // Return the RadioMenuButton directly, perhaps wrapped in Padding
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 2.0,
-            ),
-            child:
-                RadioMenuButton<
-                  Difficulty
-                >(
-                  value: difficulty,
-                  groupValue: _selectedDifficulty,
-                  onChanged:
-                      (
-                        value,
-                      ) {
-                        if (value !=
-                            null) {
-                          setState(
-                            () => _selectedDifficulty = value,
-                          );
-                        }
-                      },
-                  child: Text(
-                    difficulty.name.toUpperCase(),
                     style: TextStyle(
                       color: isSelected
                           ? color
@@ -264,7 +170,6 @@ class _SettingsScreenState
   }
 
   Widget _buildGameSpeedControls() {
-    // Calculate the index for the current level (0=VerySlow, 4=VeryFast)
     final double sliderValue = _selectedGameSpeed.index.toDouble();
     final String description = GameSpeed.getDescription(
       _selectedGameSpeed,
@@ -275,12 +180,18 @@ class _SettingsScreenState
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
+          children: const [
+            Text(
               'Very Slow',
+              style: TextStyle(
+                fontSize: 12,
+              ),
             ),
             Text(
               'Very Fast',
+              style: TextStyle(
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -290,10 +201,10 @@ class _SettingsScreenState
           max:
               (GameSpeedLevel.values.length -
                       1)
-                  .toDouble(), // 4.0
+                  .toDouble(),
           divisions:
               GameSpeedLevel.values.length -
-              1, // 4 divisions
+              1,
           label: _selectedGameSpeed.name.toUpperCase(),
           onChanged:
               (
@@ -301,21 +212,19 @@ class _SettingsScreenState
               ) {
                 setState(
                   () {
-                    // Map the double value back to the enum index
                     _selectedGameSpeed = GameSpeedLevel.values[newValue.round()];
                   },
                 );
               },
         ),
-        // Display the description below the slider
         Padding(
           padding: const EdgeInsets.only(
-            top: 8.0,
+            left: 16.0,
           ),
           child: Text(
             description,
-            style: TextStyle(
-              color: Colors.white54, // Muted text
+            style: const TextStyle(
+              color: Colors.white54,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -324,61 +233,150 @@ class _SettingsScreenState
     );
   }
 
+  Widget _buildSoundControls() {
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text(
+            'Sound Effects',
+          ),
+          value: _soundOn,
+          onChanged:
+              (
+                bool value,
+              ) {
+                setState(
+                  () => _soundOn = value,
+                );
+              },
+          secondary: Icon(
+            _soundOn
+                ? Icons.volume_up
+                : Icons.volume_off,
+          ),
+        ),
+        if (_soundOn)
+          Slider(
+            value: _volumeLevel,
+            min: 0,
+            max: 100,
+            divisions: 10,
+            label: '${_volumeLevel.round()}%',
+            onChanged:
+                (
+                  double value,
+                ) {
+                  setState(
+                    () => _volumeLevel = value,
+                  );
+                },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildThemeControls() {
+    // CHANGE: Use Row for horizontal layout
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: ThemeOption.values.map(
+        (
+          option,
+        ) {
+          final themeData = GameTheme.themeData[option]!;
+          final isSelected =
+              _selectedTheme ==
+              option;
+
+          // WRAP: Use Expanded to ensure equal width distribution
+          return Expanded(
+            child:
+                RadioMenuButton<
+                  ThemeOption
+                >(
+                  value: option,
+                  groupValue: _selectedTheme,
+                  onChanged:
+                      (
+                        value,
+                      ) {
+                        if (value !=
+                            null) {
+                          setState(
+                            () => _selectedTheme = value,
+                          );
+                        }
+                      },
+                  child: Text(
+                    // Use the theme description or a short name for space
+                    themeData.option.name.toUpperCase(),
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.blueAccent
+                          : Colors.white70,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+          );
+        },
+      ).toList(),
+    );
+  }
+
   Widget _buildStartButton(
     BuildContext context,
   ) {
     return Center(
-      child: ElevatedButton.icon(
-        icon: const Icon(
-          Icons.play_arrow,
-        ),
-        label: const Text(
-          'START GAME',
-          style: TextStyle(
-            fontSize: 18,
+      child: SizedBox(
+        width: double.infinity,
+        height: 50,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
           ),
-        ),
-        onPressed: () {
-          final settings = GameSettings(
-            boardSize: _selectedBoardSize,
-            playerCount: _selectedPlayerCount,
-            difficulty: _selectedDifficulty,
-            gameSpeed: _selectedGameSpeed,
-          );
-
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder:
-                  (
-                    context,
-                  ) => GamePage(
-                    settings: settings,
-                  ),
+          icon: const Icon(
+            Icons.play_arrow,
+          ),
+          label: const Text(
+            'START GAME',
+            style: TextStyle(
+              fontSize: 18,
             ),
-          );
-        },
+          ),
+          onPressed: () {
+            // 1. Gather ONLY environment settings
+            final settings = GameSettings(
+              boardSize: _selectedBoardSize,
+              gameSpeed: _selectedGameSpeed,
+              soundOn: _soundOn,
+              volumeLevel: _volumeLevel.round(),
+              themeOption: _selectedTheme,
+            );
+
+            // 2. Navigate
+            Navigator.of(
+              context,
+            ).push(
+              MaterialPageRoute(
+                builder:
+                    (
+                      context,
+                    ) => GamePage(
+                      settings: settings,
+                    ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  // Inside the _SettingsScreenState class
-
-  Color _getColorForDifficulty(
-    Difficulty difficulty,
-  ) {
-    switch (difficulty) {
-      case Difficulty.god:
-        return Colors.red.shade700; // Hardest: Red
-      case Difficulty.hard:
-        return Colors.orange.shade700; // Hard: Orange/Yellow
-      case Difficulty.normal:
-        return Colors.blue.shade300; // Normal: Blue
-      case Difficulty.easy:
-        return Colors.green.shade400; // Easiest: Green
-    }
-  }
+  // --- Color Helpers ---
 
   Color _getColorForBoardSize(
     BoardSize size,

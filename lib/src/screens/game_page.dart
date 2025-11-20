@@ -8,7 +8,8 @@ import 'package:asteroid_racers/src/models/game_state.dart';
 import 'package:asteroid_racers/src/models/player.dart';
 import 'package:asteroid_racers/src/models/alien.dart';
 import 'package:asteroid_racers/src/models/game_feedback.dart';
-import 'package:asteroid_racers/src/models/game_settings.dart'; // NEW/RETAINED
+import 'package:asteroid_racers/src/models/game_settings.dart';
+import 'package:asteroid_racers/src/models/game_speed.dart'; // Needed for GameSpeed utilities
 
 class GamePage
     extends
@@ -46,12 +47,19 @@ class _GamePageState
   }
 
   void _initializeGame() async {
-    // 1. Create Players and GameState
-    final player1 = Player(
-      namerTag: "Player 1", // Use namerTag
+    // 1. --- FIX: Player Constructors ---
+    // Player 1 is always human and authenticated/anonymous status should come from LaunchScreen.
+    // Since we don't have that yet, we use a default human constructor.
+    final player1 = Player.human(
+      namerTag: "Blue Player",
+      type: widget.settings.player1.type,
     );
-    final player2 = Player(
-      namerTag: "Player 2", // Use namerTag
+
+    // Player 2 is based on settings: AI or Human (defaulting to AI for simplicity here).
+    // The LaunchScreen should pass this fully configured Player 2 object.
+    // For now, we hardcode an AI player using the difficulty setting.
+    final player2 = Player.ai(
+      difficulty: widget.settings.player2.difficulty!,
     );
 
     final gameState = GameState.newGame(
@@ -67,7 +75,7 @@ class _GamePageState
     _controller = GameController(
       gameState: gameState,
       feedback: _feedback,
-      gameSpeed: widget.settings.gameSpeed,
+      gameSpeed: widget.settings.gameSpeed, // Correctly pass GameSpeedLevel
     );
     // ----------------------------------------
 
@@ -220,7 +228,6 @@ class _GamePageState
     BuildContext context,
   ) {
     return KeyboardListener(
-      // Using RawKeyboardListener for wider OS compatibility
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
@@ -296,8 +303,8 @@ class _GamePageState
               a.y ==
                   y,
           orElse: () => Alien(
-            player: Player(
-              namerTag: "temp",
+            player: Player.ai(
+              difficulty: AIDifficulty.easy,
             ),
             x: -1,
             y: -1,

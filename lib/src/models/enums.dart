@@ -30,7 +30,7 @@ enum LeverState {
 }
 
 /// Defines the difficulty level for the Minimax AI.
-enum Difficulty {
+enum AIDifficulty {
   easy,
   normal,
   hard,
@@ -44,4 +44,17 @@ enum GameSpeedLevel {
   normal,
   fast,
   veryFast,
+}
+
+/// Defines the nature of a Player slot, especially Player 2.
+enum PlayerType {
+  authenticated, // Player 1 OR Player 2, authenticated human users logged in
+  anonymous, // Player 1 OR Player 2, human users not logged in
+  ai, // Computer controlled
+}
+
+enum ThemeOption {
+  classic,
+  nebula,
+  retro,
 }
