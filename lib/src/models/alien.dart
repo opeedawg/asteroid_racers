@@ -13,4 +13,22 @@ class Alien {
     required this.x,
     required this.y,
   });
+
+  // Helper constructor to simplify the clone process
+  Alien._clone({
+    required this.player,
+    required this.x,
+    required this.y,
+  });
+
+  /// Returns a deep copy of the Alien object.
+  Alien clone() {
+    // We can safely reference the Player object, as player identity/properties
+    // do not change during the game.
+    return Alien._clone(
+      player: player,
+      x: x,
+      y: y,
+    );
+  }
 }

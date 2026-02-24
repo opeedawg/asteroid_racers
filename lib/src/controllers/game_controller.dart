@@ -1,3 +1,4 @@
+import 'package:asteroid_racers/src/ai/ai_engine.dart';
 import 'package:asteroid_racers/src/models/game_speed.dart';
 import 'package:flutter/foundation.dart';
 import 'package:asteroid_racers/src/controllers/feedback_controller.dart';
@@ -11,15 +12,15 @@ class GameController
         ChangeNotifier {
   GameState gameState;
   final FeedbackController feedback;
-  // Flag to prevent double-tapping while physics is running
-  bool _isProcessingMove = false;
-  bool get isProcessingMove => _isProcessingMove;
   final GameSpeedLevel gameSpeed;
+  final AIEngine aiEngine; // <-- ADDED: Engine instance
+  bool isProcessingMove = false;
 
   GameController({
     required this.gameState,
     required this.feedback,
     required this.gameSpeed,
+    required this.aiEngine, // <-- ADDED: Required AIEngine
   });
 
   /// Runs the physics engine once to "settle" the board.
@@ -32,6 +33,41 @@ class GameController
     notifyListeners();
   }
 
+  /// This is called internally by makeMove and initialization.
+  void handleAITurn() async {
+    // Check if controls are already locked (prevents recursion/spam)
+    if (isProcessingMove) return;
+
+    // The AI only moves if the current player slot is type AI
+    if (gameState.currentPlayer.type !=
+        PlayerType.ai)
+      return;
+
+    // 1. Lock controls and notify UI (optional: show "Thinking...")
+    isProcessingMove = true;
+    notifyListeners();
+
+    // Optional: Add a brief delay to simulate thinking time, especially for faster speeds
+    await Future.delayed(
+      const Duration(
+        milliseconds: 500,
+      ),
+    );
+
+    // 2. Find the best move using Minimax
+    final Move bestMove = aiEngine.findBestMove(
+      gameState.clone(),
+    );
+
+    // 3. Apply the move by calling the main logic
+    await makeMove(
+      bestMove.column,
+      bestMove.direction,
+    );
+
+    // Note: makeMove will unlock _isProcessingMove and switch the turn back to the human player.
+  }
+
   /// Attempts to make a move for the currently active player.
   /// This method is now asynchronous.
   Future<
@@ -42,7 +78,7 @@ class GameController
     MoveDirection direction,
   ) async {
     // 1. Check Move Legality & Global Lock
-    if (_isProcessingMove) return false;
+    if (isProcessingMove) return false;
 
     final LeverState state = getLeverState(
       column,
@@ -66,7 +102,7 @@ class GameController
       return false;
     }
 
-    _isProcessingMove = true; // Lock the controls
+    isProcessingMove = true; // Lock the controls
     feedback.add(
       FeedbackType.success,
       "Move accepted.",
@@ -97,7 +133,13 @@ class GameController
         ? gameState.player2
         : gameState.player1;
 
-    _isProcessingMove = false; // Unlock controls
+    // Check if the next player is AI
+    if (gameState.currentPlayer.type ==
+        PlayerType.ai) {
+      handleAITurn(); // The AI will move immediately
+    }
+
+    isProcessingMove = false; // Unlock controls
     notifyListeners(); // Final render and turn update
     return true;
   }

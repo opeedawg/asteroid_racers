@@ -19,17 +19,17 @@ class GameTheme {
   themeData = {
     ThemeOption.classic: const GameTheme(
       option: ThemeOption.classic,
-      description: "Default dark theme (A.I. mouse feel).",
+      description: "The original look and feel.",
       backgroundImagePath: "assets/images/bg_dark_space.png",
     ),
     ThemeOption.nebula: const GameTheme(
       option: ThemeOption.nebula,
-      description: "Vibrant cosmic background.",
+      description: "A futuristic, deep-space voyage.",
       backgroundImagePath: "assets/images/bg_nebula.png",
     ),
     ThemeOption.retro: const GameTheme(
       option: ThemeOption.retro,
-      description: "8-bit green monochrome.",
+      description: "80s disco space-fever.",
       backgroundImagePath: "assets/images/bg_retro.png",
     ),
   };

@@ -312,4 +312,75 @@ class GameState {
         return 25;
     }
   }
+
+  // In lib/src/models/game_state.dart
+
+  /// Returns a deep copy of the current GameState. Critical for Minimax search.
+  GameState clone() {
+    // 1. Clone the Lists/Maps (Deep Copy is necessary for mutable properties)
+    final newAliens = aliens
+        .map(
+          (
+            a,
+          ) => a.clone(),
+        )
+        .toList(); // Assumes Alien has a clone() method
+    final newBoard = board
+        .map(
+          (
+            row,
+          ) =>
+              List<
+                TileType
+              >.from(
+                row,
+              ),
+        )
+        .toList();
+    final newScores =
+        Map<
+          String,
+          int
+        >.from(
+          scores,
+        ); // Scores are simple enough for a shallow copy
+
+    return GameState._clone(
+      this, // Pass the current state to copy static/simple fields
+      newBoard,
+      newAliens,
+      newScores,
+    );
+  }
+
+  // You will also need a private clone constructor:
+  GameState._clone(
+    GameState source,
+    List<
+      List<
+        TileType
+      >
+    >
+    clonedBoard,
+    List<
+      Alien
+    >
+    clonedAliens,
+    Map<
+      String,
+      int
+    >
+    clonedScores,
+  ) : width = source.width,
+      height = source.height,
+      alienCount = source.alienCount,
+      boardSize = source.boardSize,
+      board = clonedBoard,
+      aliens = clonedAliens,
+      scores = clonedScores,
+      // Copy other simple properties
+      currentPlayer = source.currentPlayer,
+      lastMovedColumn = source.lastMovedColumn,
+      player1 = source.player1, // Player objects themselves don't change during the game, so they can be referenced directly
+      player2 = source.player2;
 }

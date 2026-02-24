@@ -1,17 +1,64 @@
-import 'package:asteroid_racers/src/screens/launch_screen.dart';
+import 'dart:io'
+    show
+        Platform;
+import 'package:flutter/foundation.dart'
+    show
+        kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:asteroid_racers/src/screens/splash_screen.dart';
 
 void
-main() {
+main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(
+      650,
+      800,
+    ), // Standardized vertical size
+    minimumSize: Size(
+      600,
+      700,
+    ), // Prevents shrinking into overflow territory
+    center: true,
+    title: "Asteroid Racers",
+  );
+
+  windowManager.waitUntilReadyToShow(
+    windowOptions,
+    () async {
+      await windowManager.show();
+      await windowManager.setResizable(
+        true,
+      ); // Allow some resizing, but restricted
+    },
+  );
+
+  // 2. Mobile Orientation Logic
+  if (!kIsWeb &&
+      (Platform.isAndroid ||
+          Platform.isIOS)) {
+    await SystemChrome.setPreferredOrientations(
+      [
+        DeviceOrientation.portraitUp,
+      ],
+    );
+  }
+
+  // Ensure this name matches the class name below!
   runApp(
-    const MyApp(),
+    const AsteroidRacersApp(),
   );
 }
 
-class MyApp
+// Ensure this class name is exactly what you called in runApp()
+class AsteroidRacersApp
     extends
         StatelessWidget {
-  const MyApp({
+  const AsteroidRacersApp({
     super.key,
   });
 
@@ -20,13 +67,12 @@ class MyApp
     BuildContext context,
   ) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Asteroid Racers',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        fontFamily: 'Courier',
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: Colors.black,
       ),
-      home: const LaunchScreen(),
+      home: const SplashScreen(),
     );
   }
 }

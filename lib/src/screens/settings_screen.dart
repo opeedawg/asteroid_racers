@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:asteroid_racers/src/models/enums.dart';
 import 'package:asteroid_racers/src/models/game_settings.dart';
-import 'package:asteroid_racers/src/models/game_speed.dart'; // Import GameSpeed utility
-import 'package:asteroid_racers/src/models/game_theme.dart'; // Import GameTheme model
+import 'package:asteroid_racers/src/models/game_speed.dart';
+import 'package:asteroid_racers/src/models/game_theme.dart';
 import 'package:asteroid_racers/src/screens/game_page.dart';
 import 'package:asteroid_racers/src/models/player.dart';
+import 'package:asteroid_racers/src/widgets/space_background.dart';
 
 class SettingsScreen
     extends
         StatefulWidget {
-  // We accept the players from the LaunchScreen
   final Player player1;
-  final Player? player2; // Optional, usually created dynamically here based on settings
+  final Player? player2;
 
   const SettingsScreen({
     required this.player1,
@@ -31,11 +31,8 @@ class _SettingsScreenState
         State<
           SettingsScreen
         > {
-  // --- Game Configuration State ---
   BoardSize _selectedBoardSize = BoardSize.regular;
   GameSpeedLevel _selectedGameSpeed = GameSpeedLevel.normal;
-
-  // --- Audio & Visual State ---
   bool _soundOn = true;
   double _volumeLevel = 80.0;
   ThemeOption _selectedTheme = ThemeOption.classic;
@@ -45,52 +42,147 @@ class _SettingsScreenState
     BuildContext context,
   ) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Asteroid Racers: Setup',
-        ),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(
-            20.0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTitle(
-                'BOARD SIZE',
+      backgroundColor: Colors.black,
+      body: SpaceBackground(
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              const SliverAppBar(
+                title: Text(
+                  'GAME SETUP',
+                  style: TextStyle(
+                    letterSpacing: 3,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                floating: true,
+                centerTitle: true,
               ),
-              _buildBoardSizeControls(),
-
-              _buildTitle(
-                'GAME SPEED',
-              ),
-              _buildGameSpeedControls(),
-
-              const Divider(
-                height: 40,
-                thickness: 2,
-              ),
-
-              _buildTitle(
-                'AUDIO SETTINGS',
-              ),
-              _buildSoundControls(),
-
-              _buildTitle(
-                'VISUAL THEME',
-              ),
-              _buildThemeControls(),
-
-              const SizedBox(
-                height: 40,
-              ),
-              _buildStartButton(
-                context,
-              ),
-              const SizedBox(
-                height: 20,
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 12.0,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(
+                    [
+                      _buildSectionCard(
+                        title: 'BOARD SIZE',
+                        child: _buildUniversalSlider(
+                          value: _selectedBoardSize.index.toDouble(),
+                          max:
+                              (BoardSize.values.length -
+                                      1)
+                                  .toDouble(),
+                          onChanged:
+                              (
+                                val,
+                              ) => setState(
+                                () => _selectedBoardSize = BoardSize.values[val.round()],
+                              ),
+                          currentLabel: _selectedBoardSize.name.toUpperCase(),
+                          description: _getBoardSizeDescription(
+                            _selectedBoardSize,
+                          ),
+                          leftLabel: 'Small',
+                          rightLabel: 'Huge',
+                        ),
+                      ),
+                      _buildSectionCard(
+                        title: 'GAME SPEED',
+                        child: _buildUniversalSlider(
+                          value: _selectedGameSpeed.index.toDouble(),
+                          max:
+                              (GameSpeedLevel.values.length -
+                                      1)
+                                  .toDouble(),
+                          onChanged:
+                              (
+                                val,
+                              ) => setState(
+                                () => _selectedGameSpeed = GameSpeedLevel.values[val.round()],
+                              ),
+                          currentLabel: _selectedGameSpeed.name.toUpperCase(),
+                          description: GameSpeed.getDescription(
+                            _selectedGameSpeed,
+                          ),
+                          leftLabel: 'Very Slow',
+                          rightLabel: 'Very Fast',
+                        ),
+                      ),
+                      _buildSectionCard(
+                        title: 'AUDIO',
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              title: const Text(
+                                'Sound Effects',
+                              ),
+                              value: _soundOn,
+                              onChanged:
+                                  (
+                                    v,
+                                  ) => setState(
+                                    () => _soundOn = v,
+                                  ),
+                              secondary: Icon(
+                                _soundOn
+                                    ? Icons.volume_up
+                                    : Icons.volume_off,
+                              ),
+                            ),
+                            if (_soundOn)
+                              _buildUniversalSlider(
+                                value: _volumeLevel,
+                                max: 100,
+                                onChanged:
+                                    (
+                                      val,
+                                    ) => setState(
+                                      () => _volumeLevel = val,
+                                    ),
+                                currentLabel: '${_volumeLevel.round()}%',
+                                description: 'Master game volume level.',
+                                leftLabel: 'Quiet',
+                                rightLabel: 'Loud',
+                              ),
+                          ],
+                        ),
+                      ),
+                      _buildSectionCard(
+                        title: 'VISUAL THEME',
+                        child: _buildUniversalSlider(
+                          value: _selectedTheme.index.toDouble(),
+                          max:
+                              (ThemeOption.values.length -
+                                      1)
+                                  .toDouble(),
+                          onChanged:
+                              (
+                                val,
+                              ) => setState(
+                                () => _selectedTheme = ThemeOption.values[val.round()],
+                              ),
+                          currentLabel: _selectedTheme.name.toUpperCase(),
+                          description: GameTheme.themeData[_selectedTheme]!.description,
+                          leftLabel: 'Classic',
+                          rightLabel: 'Retro',
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 40,
+                      ),
+                      _buildStartButton(
+                        context,
+                      ),
+                      const SizedBox(
+                        height: 40,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -99,231 +191,137 @@ class _SettingsScreenState
     );
   }
 
-  // --- UI Builders ---
+  // --- UI Helpers ---
 
-  Widget _buildTitle(
-    String title,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: 20,
-        bottom: 10,
+  Widget _buildSectionCard({
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(
+        bottom: 20,
       ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.blueGrey,
+      padding: const EdgeInsets.all(
+        20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(
+          0.7,
+        ), // Darker for better contrast
+        borderRadius: BorderRadius.circular(
+          16,
         ),
+        border: Border.all(
+          color: Colors.blueAccent.withOpacity(
+            0.4,
+          ), // Sharper, sexier border
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(
+              0.1,
+            ),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueAccent,
+              letterSpacing: 2,
+            ),
+          ),
+          const Divider(
+            height: 24,
+            color: Colors.white10,
+          ),
+          child,
+        ],
       ),
     );
   }
 
-  Widget _buildBoardSizeControls() {
-    return Row(
-      children: BoardSize.values.map(
-        (
-          size,
-        ) {
-          final isSelected =
-              size ==
-              _selectedBoardSize;
-          final color = _getColorForBoardSize(
-            size,
-          );
-
-          return Expanded(
-            child:
-                RadioMenuButton<
-                  BoardSize
-                >(
-                  value: size,
-                  groupValue: _selectedBoardSize,
-                  onChanged:
-                      (
-                        BoardSize? value,
-                      ) {
-                        if (value !=
-                            null) {
-                          setState(
-                            () => _selectedBoardSize = value,
-                          );
-                        }
-                      },
-                  child: Text(
-                    size.name.toUpperCase(),
-                    style: TextStyle(
-                      color: isSelected
-                          ? color
-                          : Colors.white70,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-          );
-        },
-      ).toList(),
-    );
-  }
-
-  Widget _buildGameSpeedControls() {
-    final double sliderValue = _selectedGameSpeed.index.toDouble();
-    final String description = GameSpeed.getDescription(
-      _selectedGameSpeed,
-    );
-
+  Widget _buildUniversalSlider({
+    required double value,
+    required double max,
+    required ValueChanged<
+      double
+    >
+    onChanged,
+    required String currentLabel,
+    required String description,
+    required String leftLabel,
+    required String rightLabel,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
+          children: [
             Text(
-              'Very Slow',
-              style: TextStyle(
-                fontSize: 12,
+              leftLabel,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white38,
               ),
             ),
             Text(
-              'Very Fast',
-              style: TextStyle(
-                fontSize: 12,
+              currentLabel,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            Text(
+              rightLabel,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white38,
               ),
             ),
           ],
         ),
         Slider(
-          value: sliderValue,
-          min: 0.0,
-          max:
-              (GameSpeedLevel.values.length -
-                      1)
-                  .toDouble(),
-          divisions:
-              GameSpeedLevel.values.length -
-              1,
-          label: _selectedGameSpeed.name.toUpperCase(),
-          onChanged:
-              (
-                double newValue,
-              ) {
-                setState(
-                  () {
-                    _selectedGameSpeed = GameSpeedLevel.values[newValue.round()];
-                  },
-                );
-              },
+          value: value,
+          min: 0,
+          max: max,
+          divisions: max.toInt(),
+          onChanged: onChanged,
         ),
-        Padding(
-          padding: const EdgeInsets.only(
-            left: 16.0,
+        Text(
+          description,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontStyle: FontStyle.italic,
+            fontSize: 12,
           ),
-          child: Text(
-            description,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
-  Widget _buildSoundControls() {
-    return Column(
-      children: [
-        SwitchListTile(
-          title: const Text(
-            'Sound Effects',
-          ),
-          value: _soundOn,
-          onChanged:
-              (
-                bool value,
-              ) {
-                setState(
-                  () => _soundOn = value,
-                );
-              },
-          secondary: Icon(
-            _soundOn
-                ? Icons.volume_up
-                : Icons.volume_off,
-          ),
-        ),
-        if (_soundOn)
-          Slider(
-            value: _volumeLevel,
-            min: 0,
-            max: 100,
-            divisions: 10,
-            label: '${_volumeLevel.round()}%',
-            onChanged:
-                (
-                  double value,
-                ) {
-                  setState(
-                    () => _volumeLevel = value,
-                  );
-                },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildThemeControls() {
-    // CHANGE: Use Row for horizontal layout
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: ThemeOption.values.map(
-        (
-          option,
-        ) {
-          final themeData = GameTheme.themeData[option]!;
-          final isSelected =
-              _selectedTheme ==
-              option;
-
-          // WRAP: Use Expanded to ensure equal width distribution
-          return Expanded(
-            child:
-                RadioMenuButton<
-                  ThemeOption
-                >(
-                  value: option,
-                  groupValue: _selectedTheme,
-                  onChanged:
-                      (
-                        value,
-                      ) {
-                        if (value !=
-                            null) {
-                          setState(
-                            () => _selectedTheme = value,
-                          );
-                        }
-                      },
-                  child: Text(
-                    // Use the theme description or a short name for space
-                    themeData.option.name.toUpperCase(),
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.blueAccent
-                          : Colors.white70,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-          );
-        },
-      ).toList(),
-    );
+  String _getBoardSizeDescription(
+    BoardSize size,
+  ) {
+    switch (size) {
+      case BoardSize.small:
+        return "A tight, high-intensity dogfight space.";
+      case BoardSize.regular:
+        return "The standard racing arena.";
+      case BoardSize.large:
+        return "Expansive space for complex maneuvers.";
+      case BoardSize.extraLarge:
+        return "Only for the most legendary pilots.";
+    }
   }
 
   Widget _buildStartButton(
@@ -332,23 +330,29 @@ class _SettingsScreenState
     return Center(
       child: SizedBox(
         width: double.infinity,
-        height: 50,
+        height: 60,
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blueAccent,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                30,
+              ),
+            ),
           ),
           icon: const Icon(
-            Icons.play_arrow,
+            Icons.rocket_launch,
           ),
           label: const Text(
             'START GAME',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
             ),
           ),
           onPressed: () {
-            // 1. Gather ONLY environment settings
             final settings = GameSettings(
               boardSize: _selectedBoardSize,
               gameSpeed: _selectedGameSpeed,
@@ -356,8 +360,6 @@ class _SettingsScreenState
               volumeLevel: _volumeLevel.round(),
               themeOption: _selectedTheme,
             );
-
-            // 2. Navigate
             Navigator.of(
               context,
             ).push(
@@ -374,22 +376,5 @@ class _SettingsScreenState
         ),
       ),
     );
-  }
-
-  // --- Color Helpers ---
-
-  Color _getColorForBoardSize(
-    BoardSize size,
-  ) {
-    switch (size) {
-      case BoardSize.extraLarge:
-        return Colors.red.shade700;
-      case BoardSize.large:
-        return Colors.orange.shade600;
-      case BoardSize.regular:
-        return Colors.blue.shade300;
-      case BoardSize.small:
-        return Colors.green.shade400;
-    }
   }
 }
