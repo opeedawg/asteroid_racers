@@ -1,10 +1,9 @@
-import 'package:asteroid_racers/src/ai/ai_engine.dart';
-import 'package:asteroid_racers/src/models/game_speed.dart';
 import 'package:flutter/foundation.dart';
+import 'package:asteroid_racers/src/ai/ai_engine.dart';
 import 'package:asteroid_racers/src/controllers/feedback_controller.dart';
 import 'package:asteroid_racers/src/models/alien.dart';
 import 'package:asteroid_racers/src/models/game_state.dart';
-import 'package:asteroid_racers/src/models/enums.dart';
+import 'package:asteroid_racers/src/models/enums.dart'; // Keep this! Contains internal physics enums
 import 'package:asteroid_racers/src/models/player.dart';
 
 class GameController
@@ -12,15 +11,15 @@ class GameController
         ChangeNotifier {
   GameState gameState;
   final FeedbackController feedback;
-  final GameSpeedLevel gameSpeed;
-  final AIEngine aiEngine; // <-- ADDED: Engine instance
+  final int stepDelayMs; // <-- REPLACED ENUM: Now accepts raw milliseconds
+  final AIEngine aiEngine;
   bool isProcessingMove = false;
 
   GameController({
     required this.gameState,
     required this.feedback,
-    required this.gameSpeed,
-    required this.aiEngine, // <-- ADDED: Required AIEngine
+    required this.stepDelayMs, // <-- Updated constructor
+    required this.aiEngine,
   });
 
   /// Runs the physics engine once to "settle" the board.
@@ -28,48 +27,36 @@ class GameController
     void
   >
   settleBoard() async {
-    // <--- ADD async and Future<void>
-    await _runPhysicsCycle(); // <--- ADD await
+    await _runPhysicsCycle();
     notifyListeners();
   }
 
   /// This is called internally by makeMove and initialization.
   void handleAITurn() async {
-    // Check if controls are already locked (prevents recursion/spam)
     if (isProcessingMove) return;
 
-    // The AI only moves if the current player slot is type AI
-    if (gameState.currentPlayer.type !=
-        PlayerType.ai)
-      return;
+    if (gameState.currentPlayer.isAI) return;
 
-    // 1. Lock controls and notify UI (optional: show "Thinking...")
     isProcessingMove = true;
     notifyListeners();
 
-    // Optional: Add a brief delay to simulate thinking time, especially for faster speeds
     await Future.delayed(
       const Duration(
         milliseconds: 500,
       ),
     );
 
-    // 2. Find the best move using Minimax
     final Move bestMove = aiEngine.findBestMove(
       gameState.clone(),
     );
 
-    // 3. Apply the move by calling the main logic
     await makeMove(
       bestMove.column,
       bestMove.direction,
     );
-
-    // Note: makeMove will unlock _isProcessingMove and switch the turn back to the human player.
   }
 
   /// Attempts to make a move for the currently active player.
-  /// This method is now asynchronous.
   Future<
     bool
   >
@@ -77,7 +64,6 @@ class GameController
     int column,
     MoveDirection direction,
   ) async {
-    // 1. Check Move Legality & Global Lock
     if (isProcessingMove) return false;
 
     final LeverState state = getLeverState(
@@ -102,7 +88,7 @@ class GameController
       return false;
     }
 
-    isProcessingMove = true; // Lock the controls
+    isProcessingMove = true;
     feedback.add(
       FeedbackType.success,
       "Move accepted.",
@@ -113,12 +99,12 @@ class GameController
       column,
       direction,
     );
-    notifyListeners(); // Render the column shift immediately
+    notifyListeners();
+
+    // <-- REPLACED ENUM LOOKUP with stepDelayMs
     await Future.delayed(
       Duration(
-        milliseconds: GameSpeed.getDelay(
-          gameSpeed,
-        ),
+        milliseconds: stepDelayMs,
       ),
     );
 
@@ -133,14 +119,12 @@ class GameController
         ? gameState.player2
         : gameState.player1;
 
-    // Check if the next player is AI
-    if (gameState.currentPlayer.type ==
-        PlayerType.ai) {
-      handleAITurn(); // The AI will move immediately
+    if (gameState.currentPlayer.isAI) {
+      handleAITurn();
     }
 
-    isProcessingMove = false; // Unlock controls
-    notifyListeners(); // Final render and turn update
+    isProcessingMove = false;
+    notifyListeners();
     return true;
   }
 
@@ -182,11 +166,10 @@ class GameController
       // If any action was taken, render the new state and wait.
       if (actionWasTaken) {
         notifyListeners();
+        // <-- REPLACED ENUM LOOKUP with stepDelayMs
         await Future.delayed(
           Duration(
-            milliseconds: GameSpeed.getDelay(
-              gameSpeed,
-            ),
+            milliseconds: stepDelayMs,
           ),
         );
       }
@@ -195,9 +178,9 @@ class GameController
     // 4. SCORE
     _checkAndScoreAliens();
   }
+
   // --- Private Helper Methods (The "Physics") ---
 
-  /// 1. SHIFT COLUMN (Returns void)
   void _shiftColumn(
     int column,
     MoveDirection direction,
@@ -224,7 +207,6 @@ class GameController
       }
       gameState.board[0][column] = bottomTile;
     } else {
-      // Direction is Up
       final TileType topTile = gameState.board[0][column];
       for (
         int y = 0;
@@ -256,9 +238,8 @@ class GameController
         alien.y =
             (alien.y +
                 1) %
-            height; // Modulo handles the wrap
+            height;
       } else {
-        // Direction is Up
         alien.y =
             (alien.y -
             1);
@@ -266,14 +247,12 @@ class GameController
             0) {
           alien.y =
               height -
-              1; // Handle the wrap manually
+              1;
         }
       }
     }
   }
 
-  /// 2. APPLY GRAVITY (Returns bool)
-  /// Returns 'true' if any alien fell.
   bool _applyGravity() {
     bool anAlienFell = false;
     do {
@@ -308,7 +287,6 @@ class GameController
     return anAlienFell;
   }
 
-  /// Helper for gravity.
   bool _canAlienFall(
     Alien alien,
   ) {
@@ -338,8 +316,6 @@ class GameController
     return true;
   }
 
-  /// 3. MOVE ALIENS (Returns bool)
-  /// Returns 'true' if any alien moved one space.
   bool _moveAliens(
     Player player,
   ) {
@@ -362,7 +338,6 @@ class GameController
 
     if (direction ==
         1) {
-      // P1 (moving right)
       playerAliens.sort(
         (
           a,
@@ -372,7 +347,6 @@ class GameController
         ),
       ); // Right-most first
     } else {
-      // P2 (moving left)
       playerAliens.sort(
         (
           a,
@@ -396,7 +370,6 @@ class GameController
     return anyAlienMoved;
   }
 
-  /// Helper for movement.
   bool _canAlienMove(
     Alien alien,
     int direction,
@@ -436,7 +409,6 @@ class GameController
     return true;
   }
 
-  /// 4. CHECK AND SCORE ALIENS (Returns void)
   void _checkAndScoreAliens() {
     final List<
       Alien
@@ -499,7 +471,6 @@ class GameController
     );
   }
 
-  // --- STATIC HELPER FOR THE UI ---
   static LeverState getLeverState(
     int column,
     GameState gameState,
@@ -537,7 +508,7 @@ class GameController
 
     if (allOperableColumns.length ==
         1) {
-      return LeverState.available; // Exception
+      return LeverState.available;
     } else {
       return LeverState.locked;
     }

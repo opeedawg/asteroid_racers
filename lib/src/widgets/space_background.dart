@@ -14,41 +14,45 @@ class SpaceBackground
   Widget build(
     BuildContext context,
   ) {
-    return Scaffold(
-      backgroundColor: Colors.black, // This fixes the "grey/ugly" gap issue
-      body: Stack(
+    // 1. We remove the Scaffold here. It should be in your screen file,
+    // and this widget should just be the "Skin".
+    return SizedBox.expand(
+      child: Stack(
         children: [
-          // 1. The Art - Set to 'contain' so it NEVER distorts
+          // 2. THE IMAGE: Using Positioned.fill with BoxFit.cover
+          // to ensure it bleeds past all window edges.
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/asteroidRacersSettingsFrame2.jpg',
-              fit: BoxFit.contain, // Keeps art perfectly proportional
-              alignment: Alignment.center,
+            child: Opacity(
+              opacity: 0.4,
+              child: Image.asset(
+                'assets/images/asteroidRacersSettingsFrame3.jpg',
+                fit: BoxFit.cover, // Forces edge-to-edge coverage
+                alignment: Alignment.center,
+              ),
             ),
           ),
 
-          // 2. The Dark Vignette
-          // This creates a smooth transition between the art and the black background
+          // 3. THE VIGNETTE: Updated to be very subtle but edge-to-edge
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.center,
-                  radius: 1.0,
+                  radius: 1.5, // Pushes the gradient way out past the corners
                   colors: [
-                    Colors.black.withOpacity(
-                      0.2,
-                    ), // Let art show in center
-                    Colors.black.withOpacity(
-                      0.9,
-                    ), // Fade to black at edges
+                    Colors.black.withValues(
+                      alpha: 0.0,
+                    ),
+                    Colors.black.withValues(
+                      alpha: 0.4,
+                    ),
                   ],
                 ),
               ),
             ),
           ),
 
-          // 3. Your UI Content
+          // 4. THE CONTENT
           if (child !=
               null)
             child!,

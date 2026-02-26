@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
         kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:asteroid_racers/src/screens/splash_screen.dart';
 
@@ -13,6 +14,11 @@ void
 main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'http://127.0.0.1:54321', // Your local API URL
+    anonKey: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH', // Your local Public Key
+  );
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(

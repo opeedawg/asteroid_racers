@@ -1,6 +1,6 @@
-import 'package:asteroid_racers/src/ai/ai_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:asteroid_racers/src/ai/ai_engine.dart';
 import 'package:asteroid_racers/src/controllers/feedback_controller.dart';
 import 'package:asteroid_racers/src/controllers/game_controller.dart';
 import 'package:asteroid_racers/src/models/enums.dart';
@@ -9,6 +9,8 @@ import 'package:asteroid_racers/src/models/player.dart';
 import 'package:asteroid_racers/src/models/alien.dart';
 import 'package:asteroid_racers/src/models/game_feedback.dart';
 import 'package:asteroid_racers/src/models/game_settings.dart';
+import 'package:asteroid_racers/src/services/data_access.dart';
+import 'package:asteroid_racers/src/widgets/game_header.dart'; // Ensure this path is correct
 
 class GamePage
     extends
@@ -40,6 +42,10 @@ class _GamePageState
   int _selectedColumn = 0;
   final FocusNode _focusNode = FocusNode();
 
+  // Dynamic Background and AI State
+  String _themeImagePath = 'assets/images/ThemeClassic.png';
+  late Player _aiPlayer;
+
   @override
   void initState() {
     super.initState();
@@ -48,34 +54,85 @@ class _GamePageState
   }
 
   void _initializeGame() async {
-    // Use the Player objects already passed to the widget.
-    final Player player1 = widget.settings.player1;
-    final Player player2 = widget.settings.player2;
+    final player1 = widget.settings.player1;
+    final lookups = await DataAccess().getLookups(
+      forceRefresh: false,
+    );
 
+    // 1. Map DB IDs back to their Lookup String Names
+    final boardSizeItem = lookups.firstWhere(
+      (
+        l,
+      ) =>
+          l.id ==
+          widget.settings.boardSizeId,
+    );
+    final themeItem = lookups.firstWhere(
+      (
+        l,
+      ) =>
+          l.id ==
+          widget.settings.themeId,
+    );
+
+    // 2. Set the dynamic background image path
+    _themeImagePath = 'assets/images/Theme${themeItem.name}.png';
+
+    // 3. Create the AI Opponent
+    _aiPlayer = Player.ai(
+      difficulty: AIDifficulty.normal,
+    ); // You can map the aiDifficultyId here later
+
+    // 4. Initialize the new GameState
     final gameState = GameState.newGame(
-      boardSize: widget.settings.boardSize,
+      boardSizeName: boardSizeItem.name,
       player1: player1,
-      player2: player2,
+      player2: _aiPlayer,
     );
 
     // AI Engine Initialization
-    final AIDifficulty difficulty =
-        player2.type ==
-            PlayerType.ai
-        ? player2.difficulty!
-        : AIDifficulty.normal;
-
     _aiEngine = AIEngine(
-      difficulty,
+      AIDifficulty.normal,
     );
 
     // Controller Initialization
     _feedback = FeedbackController();
+    // 1. Fetch the string name from the DB
+    final speedItem = lookups.firstWhere(
+      (
+        l,
+      ) =>
+          l.id ==
+          widget.settings.gameSpeedId,
+    );
+
+    // 2. Map it to raw milliseconds for the engine
+    int calculateDelayMs(
+      String speedName,
+    ) {
+      switch (speedName) {
+        case 'Slow':
+          return 800;
+        case 'Fast':
+          return 250;
+        case 'Ludicrous':
+          return 100;
+        case 'Normal':
+        default:
+          return 500;
+      }
+    }
+
+    final int engineDelay = calculateDelayMs(
+      speedItem.name,
+    );
+
+    // 3. Inject it!
     _controller = GameController(
       gameState: gameState,
       feedback: _feedback,
-      gameSpeed: widget.settings.gameSpeed,
-      aiEngine: _aiEngine, // Pass the AI Engine
+      stepDelayMs: engineDelay, // Passed as a pure integer!
+      aiEngine: _aiEngine,
     );
 
     // Set up listeners
@@ -108,8 +165,7 @@ class _GamePageState
           );
 
           // --- START AI TURN IF NEEDED ---
-          if (_controller.gameState.currentPlayer.type ==
-              PlayerType.ai) {
+          if (_controller.gameState.currentPlayer.isAI) {
             _controller.handleAITurn();
           }
         }
@@ -118,14 +174,10 @@ class _GamePageState
   }
 
   // --- UI Logic Methods ---
-
   void _onGameStateChanged() {
     if (_isInitializing) return;
     setState(
-      () {
-        // The AI turn handling is now called within the GameController itself,
-        // so this setState() is just for the UI rebuild.
-      },
+      () {},
     );
   }
 
@@ -169,8 +221,9 @@ class _GamePageState
   ) {
     if (_controller.isProcessingMove ||
         event
-            is! KeyDownEvent)
+            is! KeyDownEvent) {
       return;
+    }
 
     if (event.logicalKey ==
         LogicalKeyboardKey.arrowLeft) {
@@ -197,7 +250,6 @@ class _GamePageState
     }
   }
 
-  /// Finds the next available lever to the left or right.
   void _findNextAvailableLever(
     int direction,
   ) {
@@ -239,38 +291,96 @@ class _GamePageState
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            "Asteroid Racers - Turn: ${_controller.gameState.currentPlayer.namerTag}",
-          ),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isInitializing)
-                const Padding(
-                  padding: EdgeInsets.all(
-                    32.0,
+        backgroundColor: Colors.black,
+        // Using a Stack to place the UI over the dynamic background image
+        body: Stack(
+          children: [
+            // 1. The Dynamic Theme Background
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.6, // Darken slightly so the text/board remains readable
+                child: Image.asset(
+                  _themeImagePath,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
+              ),
+            ),
+
+            // 2. The Game UI with the Shared Header
+            CustomScrollView(
+              slivers: [
+                GameHeader(
+                  title: "MATCH ENGAGED",
+                  pilotTag: widget.settings.player1.namerTag,
+                  // Disable profile/leaderboard popups during an active game, or wire them up to pause the game
+                  onProfilePressed: () => debugPrint(
+                    'Profile pressed in-game',
                   ),
-                  child: CircularProgressIndicator(),
+                  onLeaderboardPressed: () => debugPrint(
+                    'Leaderboard pressed in-game',
+                  ),
                 ),
-              if (!_isInitializing) ...[
-                _buildScoreDebugPanel(),
-                ..._buildBoardWidgets(),
-                const SizedBox(
-                  height: 20,
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isInitializing)
+                          const Padding(
+                            padding: EdgeInsets.all(
+                              32.0,
+                            ),
+                            child: CircularProgressIndicator(
+                              color: Colors.cyanAccent,
+                            ),
+                          ),
+                        if (!_isInitializing) ...[
+                          _buildScoreDebugPanel(),
+                          // Adding a slight background behind the board for readability
+                          Container(
+                            padding: const EdgeInsets.all(
+                              16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(
+                                alpha: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                16,
+                              ),
+                              border: Border.all(
+                                color: Colors.cyanAccent.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                ..._buildBoardWidgets(),
+                                const SizedBox(
+                                  height: 20,
+                                ),
+                                _buildLeverRow(),
+                                _buildSelectorRow(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-                _buildLeverRow(),
-                _buildSelectorRow(),
               ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  // --- Board Renderer ---
   // --- Board Renderer ---
   List<
     Widget
@@ -284,10 +394,11 @@ class _GamePageState
     final aliens = _controller.gameState.aliens;
     final width = _controller.gameState.width;
     final height = _controller.gameState.height;
+
+    // Slightly increase cell width if you want the art to be bigger
     const double cellWidth = 24.0;
 
-    final Player p1 = widget.settings.player1;
-    final Player p2 = widget.settings.player2;
+    final Player p2 = _aiPlayer;
 
     for (
       int y = 0;
@@ -314,6 +425,7 @@ class _GamePageState
               a.y ==
                   y,
           orElse: () => Alien(
+            // Use the .ai constructor instead of manually setting PlayerType
             player: Player.ai(
               difficulty: AIDifficulty.easy,
             ),
@@ -321,35 +433,62 @@ class _GamePageState
             y: -1,
           ),
         );
-        String cellContent = ".";
-        Color cellColor = Colors.grey;
+
+        Widget cellContent = const SizedBox.shrink(); // Empty space by default
+
         if (alien.x !=
             -1) {
-          cellContent = "B";
-          cellColor = Colors.blueAccent;
           if (alien.player.id ==
               p2.id) {
-            // Compare against P2's actual ID
-            cellContent = "R";
-            cellColor = Colors.redAccent;
+            // AI Opponent (Facing Left)
+            // Ensure filename matches your assets list exactly!
+            cellContent = Image.asset(
+              'assets/images/AlientRed.png',
+              fit: BoxFit.contain,
+            );
+          } else {
+            // Pilot (Facing Right)
+            cellContent = Image.asset(
+              'assets/images/AlientBlue.png',
+              fit: BoxFit.contain,
+            );
           }
         } else if (board[y][x] ==
             TileType.asteroid) {
-          cellContent = "A";
-          cellColor = Colors.brown[400]!;
+          // Alternate between Crater 1 and 2 for visual variety
+          String craterVariation =
+              ((x +
+                          y) %
+                      2 ==
+                  0)
+              ? '1'
+              : '2';
+
+          // Fallback variable in case _themeName isn't set yet
+          // In _initializeGame(), make sure you added: _themeName = themeItem.name;
+          String themeToUse =
+              _themeImagePath.contains(
+                'Nebula',
+              )
+              ? 'Nebula'
+              : _themeImagePath.contains(
+                  'Retro',
+                )
+              ? 'Retro'
+              : 'Classic';
+
+          cellContent = Image.asset(
+            'assets/images/Crater$themeToUse$craterVariation.png',
+            fit: BoxFit.contain,
+          );
         }
+
         cells.add(
           Container(
             width: cellWidth,
+            height: cellWidth, // Force a square aspect ratio for the art
             alignment: Alignment.center,
-            child: Text(
-              cellContent,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: cellColor,
-              ),
-            ),
+            child: cellContent,
           ),
         );
       }
@@ -444,7 +583,7 @@ class _GamePageState
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: Colors.cyanAccent,
             ),
           ),
         ),
@@ -459,7 +598,7 @@ class _GamePageState
   // --- Score Debug Panel ---
   Widget _buildScoreDebugPanel() {
     final Player p1 = widget.settings.player1;
-    final Player p2 = widget.settings.player2;
+    final Player p2 = _aiPlayer;
 
     final double scoreDiff = _aiEngine.getCurrentScoreDifference(
       _controller.gameState,
@@ -474,7 +613,7 @@ class _GamePageState
       winningColor = Colors.blueAccent;
     } else if (scoreDiff <
         0) {
-      winningPlayer = p2.namerTag;
+      winningPlayer = 'AI Opponent';
       winningColor = Colors.redAccent;
     } else {
       winningPlayer = 'TIE';
@@ -496,18 +635,25 @@ class _GamePageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Blue Score: $p1Score',
+                'PILOT: $p1Score',
                 style: const TextStyle(
                   color: Colors.blueAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
+              const SizedBox(
+                width: 40,
+              ),
               Text(
-                'Red Score: $p2Score',
+                'AI: $p2Score',
                 style: const TextStyle(
                   color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
             ],
@@ -515,18 +661,14 @@ class _GamePageState
           const SizedBox(
             height: 8,
           ),
-          Text(
-            'Heuristic Winner: $winningPlayer',
-            style: TextStyle(
-              color: winningColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          Text(
-            'Raw Diff: ${scoreDiff.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 12,
+          Center(
+            child: Text(
+              'Advantage: $winningPlayer',
+              style: TextStyle(
+                color: winningColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
         ],

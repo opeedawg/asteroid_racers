@@ -140,8 +140,9 @@ class AIEngine {
 
         // Alpha-Beta Pruning
         if (beta <=
-            alpha)
+            alpha) {
           break;
+        }
       }
       return MoveScore(
         bestMove,
@@ -180,8 +181,9 @@ class AIEngine {
 
         // Alpha-Beta Pruning
         if (beta <=
-            alpha)
+            alpha) {
           break;
+        }
       }
       return MoveScore(
         bestMove,
@@ -503,11 +505,13 @@ class AIEngine {
         alien.y +
         1;
     if (targetY >=
-        gameState.height)
+        gameState.height) {
       return false;
+    }
     if (gameState.board[targetY][alien.x] ==
-        TileType.asteroid)
+        TileType.asteroid) {
       return false;
+    }
     final isBlockedByAlien = gameState.aliens.any(
       (
         other,
@@ -535,16 +539,19 @@ class AIEngine {
     if (alien.x <
             0 ||
         alien.x >=
-            gameState.width)
+            gameState.width) {
       return false;
+    }
     if (targetX <
             0 ||
         targetX >=
-            gameState.width)
+            gameState.width) {
       return true;
+    }
     if (gameState.board[targetY][targetX] ==
-        TileType.asteroid)
+        TileType.asteroid) {
       return false;
+    }
     final isBlockedByAlien = gameState.aliens.any(
       (
         other,
@@ -799,9 +806,9 @@ class AIEngine {
   /// Maps AIDifficulty enum to a search depth integer.
   int _getSearchDepth() {
     switch (difficulty) {
-      case AIDifficulty.god:
+      case AIDifficulty.master:
         return 7; // Deepest, slowest, strongest
-      case AIDifficulty.hard:
+      case AIDifficulty.veteran:
         return 5;
       case AIDifficulty.normal:
         return 3;

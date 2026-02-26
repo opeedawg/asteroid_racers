@@ -1,21 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:asteroid_racers/src/models/enums.dart';
 import 'package:asteroid_racers/src/models/game_settings.dart';
-import 'package:asteroid_racers/src/models/game_speed.dart';
-import 'package:asteroid_racers/src/models/game_theme.dart';
-import 'package:asteroid_racers/src/screens/game_page.dart';
 import 'package:asteroid_racers/src/models/player.dart';
+import 'package:asteroid_racers/src/screens/authentication_screen.dart';
+import 'package:asteroid_racers/src/screens/game_page.dart';
+import 'package:asteroid_racers/src/widgets/game_header.dart';
+import 'package:asteroid_racers/src/widgets/pilot_profile_dialog.dart';
+import 'package:flutter/material.dart';
+import 'package:asteroid_racers/src/models/lookup_item.dart';
 import 'package:asteroid_racers/src/widgets/space_background.dart';
+import 'package:asteroid_racers/src/widgets/universal_lookup_slider.dart';
+import 'package:asteroid_racers/src/services/data_access.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Required for signOut
 
 class SettingsScreen
     extends
         StatefulWidget {
-  final Player player1;
-  final Player? player2;
-
   const SettingsScreen({
-    required this.player1,
-    this.player2,
     super.key,
   });
 
@@ -31,11 +30,260 @@ class _SettingsScreenState
         State<
           SettingsScreen
         > {
-  BoardSize _selectedBoardSize = BoardSize.regular;
-  GameSpeedLevel _selectedGameSpeed = GameSpeedLevel.normal;
-  bool _soundOn = true;
-  double _volumeLevel = 80.0;
-  ThemeOption _selectedTheme = ThemeOption.classic;
+  bool _isLoading = true;
+  String? _pilotTag;
+  final DataAccess _db = DataAccess();
+
+  // Categories
+  List<
+    LookupItem
+  >
+  _boardSizes = [];
+  List<
+    LookupItem
+  >
+  _gameSpeeds = [];
+  List<
+    LookupItem
+  >
+  _aiDifficulties = [];
+  List<
+    LookupItem
+  >
+  _themes = [];
+  List<
+    LookupItem
+  >
+  _volumes = [];
+
+  // Selection Indices
+  int _boardSizeIdx = 0;
+  int _gameSpeedIdx = 0;
+  int _aiDifficultyIdx = 0;
+  int _themeIdx = 0;
+  int _volumeIdx = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSettings();
+  }
+
+  Future<
+    void
+  >
+  _initializeSettings() async {
+    try {
+      await _db.initializeSession();
+      _pilotTag = _db.getPilotTag();
+      final allLookups = await _db.getLookups();
+
+      _boardSizes = allLookups
+          .where(
+            (
+              e,
+            ) =>
+                e.key ==
+                'BoardSize',
+          )
+          .toList();
+      _gameSpeeds = allLookups
+          .where(
+            (
+              e,
+            ) =>
+                e.key ==
+                'GameSpeed',
+          )
+          .toList();
+      _aiDifficulties = allLookups
+          .where(
+            (
+              e,
+            ) =>
+                e.key ==
+                'AIDifficulty',
+          )
+          .toList();
+      _themes = allLookups
+          .where(
+            (
+              e,
+            ) =>
+                e.key ==
+                'Theme',
+          )
+          .toList();
+      _volumes = allLookups
+          .where(
+            (
+              e,
+            ) =>
+                e.key ==
+                'Volume',
+          )
+          .toList();
+
+      final lastPlayed = _db.getLastPlayedSettings();
+
+      setState(
+        () {
+          _boardSizeIdx = _findIdx(
+            _boardSizes,
+            lastPlayed['board_size_id'],
+            defaultIdx: 1,
+          );
+          _gameSpeedIdx = _findIdx(
+            _gameSpeeds,
+            lastPlayed['game_speed_id'],
+            defaultIdx: 2,
+          );
+          _aiDifficultyIdx = _findIdx(
+            _aiDifficulties,
+            lastPlayed['ai_difficulty_id'],
+            defaultIdx: 1,
+          );
+          _themeIdx = _findIdx(
+            _themes,
+            lastPlayed['theme_id'],
+            defaultIdx: 0,
+          );
+          _volumeIdx = _findIdx(
+            _volumes,
+            lastPlayed['volume_id'],
+            defaultIdx: 2,
+          );
+          _isLoading = false;
+        },
+      );
+    } catch (
+      e
+    ) {
+      debugPrint(
+        'Failed to load settings: $e',
+      );
+    }
+  }
+
+  int _findIdx(
+    List<
+      LookupItem
+    >
+    list,
+    int? id, {
+    int defaultIdx = 0,
+  }) {
+    if (id ==
+        null) {
+      return defaultIdx;
+    }
+    final found = list.indexWhere(
+      (
+        item,
+      ) =>
+          item.id ==
+          id,
+    );
+    return (found !=
+            -1)
+        ? found
+        : defaultIdx;
+  }
+
+  void _startGame() async {
+    // 1. Grab the current selected IDs
+    final selectedBoardSizeId = _boardSizes[_boardSizeIdx].id;
+    final selectedGameSpeedId = _gameSpeeds[_gameSpeedIdx].id;
+    final selectedAiDifficultyId = _aiDifficulties[_aiDifficultyIdx].id;
+    final selectedThemeId = _themes[_themeIdx].id;
+    final selectedVolumeId = _volumes[_volumeIdx].id;
+
+    // 2. Save to database
+    final settingsMap = {
+      'board_size_id': selectedBoardSizeId,
+      'game_speed_id': selectedGameSpeedId,
+      'ai_difficulty_id': selectedAiDifficultyId,
+      'theme_id': selectedThemeId,
+      'volume_id': selectedVolumeId,
+    };
+    await _db.updateLastPlayed(
+      settingsMap,
+    );
+    debugPrint(
+      'Launching match with saved settings...',
+    );
+
+    // 3. Build the GameSettings object for the engine
+    final matchSettings = GameSettings(
+      boardSizeId: selectedBoardSizeId,
+      gameSpeedId: selectedGameSpeedId,
+      aiDifficultyId: selectedAiDifficultyId,
+      themeId: selectedThemeId,
+      volumeId: selectedVolumeId,
+      player1: Player.human(
+        namerTag:
+            _pilotTag ??
+            'Unknown Pilot',
+      ),
+    );
+
+    // 4. Navigate to the actual game!
+    if (mounted) {
+      Navigator.of(
+        context,
+      ).pushReplacement(
+        MaterialPageRoute(
+          builder:
+              (
+                context,
+              ) => GamePage(
+                settings: matchSettings,
+              ),
+        ),
+      );
+    }
+  }
+
+  void _showPilotProfile(
+    BuildContext context,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (
+            context,
+          ) => PilotProfileDialog(
+            pilotTag:
+                _pilotTag ??
+                'Unknown',
+            onLogout: () async {
+              await Supabase.instance.client.auth.signOut();
+
+              if (context.mounted) {
+                // 1. Close the dialog popup
+                Navigator.of(
+                  context,
+                ).pop();
+
+                // 2. Wipe the navigation stack and go to Auth Screen
+                Navigator.of(
+                  context,
+                ).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => const AuthenticationScreen(),
+                  ),
+                  (
+                    route,
+                  ) => false, // This false means "destroy all previous routes"
+                );
+              }
+            },
+          ),
+    );
+  }
 
   @override
   Widget build(
@@ -45,336 +293,236 @@ class _SettingsScreenState
       backgroundColor: Colors.black,
       body: SpaceBackground(
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              const SliverAppBar(
-                title: Text(
-                  'GAME SETUP',
-                  style: TextStyle(
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold,
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.green,
                   ),
-                ),
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                floating: true,
-                centerTitle: true,
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: 12.0,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate(
-                    [
-                      _buildSectionCard(
-                        title: 'BOARD SIZE',
-                        child: _buildUniversalSlider(
-                          value: _selectedBoardSize.index.toDouble(),
-                          max:
-                              (BoardSize.values.length -
-                                      1)
-                                  .toDouble(),
-                          onChanged:
-                              (
-                                val,
-                              ) => setState(
-                                () => _selectedBoardSize = BoardSize.values[val.round()],
-                              ),
-                          currentLabel: _selectedBoardSize.name.toUpperCase(),
-                          description: _getBoardSizeDescription(
-                            _selectedBoardSize,
-                          ),
-                          leftLabel: 'Small',
-                          rightLabel: 'Huge',
-                        ),
+                )
+              : CustomScrollView(
+                  slivers: [
+                    GameHeader(
+                      title: 'Game Setup',
+                      pilotTag: _pilotTag,
+                      onProfilePressed: () => _showPilotProfile(
+                        context,
                       ),
-                      _buildSectionCard(
-                        title: 'GAME SPEED',
-                        child: _buildUniversalSlider(
-                          value: _selectedGameSpeed.index.toDouble(),
-                          max:
-                              (GameSpeedLevel.values.length -
-                                      1)
-                                  .toDouble(),
-                          onChanged:
-                              (
-                                val,
-                              ) => setState(
-                                () => _selectedGameSpeed = GameSpeedLevel.values[val.round()],
-                              ),
-                          currentLabel: _selectedGameSpeed.name.toUpperCase(),
-                          description: GameSpeed.getDescription(
-                            _selectedGameSpeed,
-                          ),
-                          leftLabel: 'Very Slow',
-                          rightLabel: 'Very Fast',
-                        ),
+                      onLeaderboardPressed: () {
+                        /* Navigate to Leaderboard */
+                      },
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 8.0,
                       ),
-                      _buildSectionCard(
-                        title: 'AUDIO',
-                        child: Column(
-                          children: [
-                            SwitchListTile(
-                              title: const Text(
-                                'Sound Effects',
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate(
+                          [
+                            // 1. The Dynamic Premium Upsell Banner
+                            if (!_db.isPremium()) _buildPremiumBanner(),
+
+                            // 2. The Data-Driven Sliders
+                            UniversalLookupSlider(
+                              title: 'BOARD SIZE',
+                              items: _boardSizes,
+                              hiddenCount: _db.getHiddenCount(
+                                'BoardSize',
                               ),
-                              value: _soundOn,
+                              selectedIndex: _boardSizeIdx,
                               onChanged:
                                   (
-                                    v,
+                                    val,
                                   ) => setState(
-                                    () => _soundOn = v,
+                                    () => _boardSizeIdx = val,
                                   ),
-                              secondary: Icon(
-                                _soundOn
-                                    ? Icons.volume_up
-                                    : Icons.volume_off,
+                            ),
+                            UniversalLookupSlider(
+                              title: 'GAME SPEED',
+                              items: _gameSpeeds,
+                              hiddenCount: _db.getHiddenCount(
+                                'GameSpeed',
+                              ),
+                              selectedIndex: _gameSpeedIdx,
+                              onChanged:
+                                  (
+                                    val,
+                                  ) => setState(
+                                    () => _gameSpeedIdx = val,
+                                  ),
+                            ),
+                            UniversalLookupSlider(
+                              title: 'AI DIFFICULTY',
+                              items: _aiDifficulties,
+                              hiddenCount: _db.getHiddenCount(
+                                'AIDifficulty',
+                              ),
+                              selectedIndex: _aiDifficultyIdx,
+                              onChanged:
+                                  (
+                                    val,
+                                  ) => setState(
+                                    () => _aiDifficultyIdx = val,
+                                  ),
+                            ),
+                            UniversalLookupSlider(
+                              title: 'AUDIO VOLUME',
+                              items: _volumes,
+                              selectedIndex: _volumeIdx,
+                              onChanged:
+                                  (
+                                    val,
+                                  ) => setState(
+                                    () => _volumeIdx = val,
+                                  ),
+                            ),
+                            UniversalLookupSlider(
+                              title: 'VISUAL THEME',
+                              items: _themes,
+                              hiddenCount: _db.getHiddenCount(
+                                'Theme',
+                              ),
+                              selectedIndex: _themeIdx,
+                              onChanged:
+                                  (
+                                    val,
+                                  ) => setState(
+                                    () => _themeIdx = val,
+                                  ),
+                            ),
+
+                            const SizedBox(
+                              height: 32,
+                            ),
+
+                            // 3. The New Primary Action Button (Restored to the body)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 40.0,
+                              ),
+                              child: SizedBox(
+                                width: double.infinity,
+                                height: 60,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green.shade700,
+                                    foregroundColor: Colors.white,
+                                    elevation: 8,
+                                    shadowColor: Colors.greenAccent.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        30,
+                                      ),
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.rocket_launch,
+                                  ),
+                                  label: const Text(
+                                    'START MATCH',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                  onPressed: _startGame,
+                                ),
                               ),
                             ),
-                            if (_soundOn)
-                              _buildUniversalSlider(
-                                value: _volumeLevel,
-                                max: 100,
-                                onChanged:
-                                    (
-                                      val,
-                                    ) => setState(
-                                      () => _volumeLevel = val,
-                                    ),
-                                currentLabel: '${_volumeLevel.round()}%',
-                                description: 'Master game volume level.',
-                                leftLabel: 'Quiet',
-                                rightLabel: 'Loud',
-                              ),
                           ],
                         ),
                       ),
-                      _buildSectionCard(
-                        title: 'VISUAL THEME',
-                        child: _buildUniversalSlider(
-                          value: _selectedTheme.index.toDouble(),
-                          max:
-                              (ThemeOption.values.length -
-                                      1)
-                                  .toDouble(),
-                          onChanged:
-                              (
-                                val,
-                              ) => setState(
-                                () => _selectedTheme = ThemeOption.values[val.round()],
-                              ),
-                          currentLabel: _selectedTheme.name.toUpperCase(),
-                          description: GameTheme.themeData[_selectedTheme]!.description,
-                          leftLabel: 'Classic',
-                          rightLabel: 'Retro',
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 40,
-                      ),
-                      _buildStartButton(
-                        context,
-                      ),
-                      const SizedBox(
-                        height: 40,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  // --- UI Helpers ---
-
-  Widget _buildSectionCard({
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildPremiumBanner() {
     return Container(
       margin: const EdgeInsets.only(
-        bottom: 20,
+        bottom: 16,
       ),
       padding: const EdgeInsets.all(
-        20,
+        12,
       ),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(
-          0.7,
-        ), // Darker for better contrast
+        color: Colors.amber.withValues(
+          alpha: 0.1,
+        ),
         borderRadius: BorderRadius.circular(
-          16,
+          8,
         ),
         border: Border.all(
-          color: Colors.blueAccent.withOpacity(
-            0.4,
-          ), // Sharper, sexier border
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blueAccent.withOpacity(
-              0.1,
-            ),
-            blurRadius: 10,
-            spreadRadius: 1,
+          color: Colors.amber.withValues(
+            alpha: 0.5,
           ),
-        ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: const Row(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.blueAccent,
-              letterSpacing: 2,
+          Icon(
+            Icons.stars,
+            color: Colors.amber,
+            size: 20,
+          ),
+          SizedBox(
+            width: 12,
+          ),
+          Expanded(
+            child: Text(
+              'FREE TIER: Upgrade for XL Boards, Master AI, and Nebula Themes!',
+              style: TextStyle(
+                color: Colors.amber,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          const Divider(
-            height: 24,
-            color: Colors.white10,
-          ),
-          child,
         ],
       ),
     );
   }
+}
 
-  Widget _buildUniversalSlider({
-    required double value,
-    required double max,
-    required ValueChanged<
-      double
-    >
-    onChanged,
-    required String currentLabel,
-    required String description,
-    required String leftLabel,
-    required String rightLabel,
-  }) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              leftLabel,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white38,
-              ),
-            ),
-            Text(
-              currentLabel,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
-              ),
-            ),
-            Text(
-              rightLabel,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white38,
-              ),
-            ),
-          ],
-        ),
-        Slider(
-          value: value,
-          min: 0,
-          max: max,
-          divisions: max.toInt(),
-          onChanged: onChanged,
-        ),
-        Text(
-          description,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontStyle: FontStyle.italic,
-            fontSize: 12,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
+// Helper widget outside the State class
+class _StatTile
+    extends
+        StatelessWidget {
+  final String label;
+  final String value;
+  const _StatTile({
+    required this.label,
+    required this.value,
+  });
 
-  String _getBoardSizeDescription(
-    BoardSize size,
-  ) {
-    switch (size) {
-      case BoardSize.small:
-        return "A tight, high-intensity dogfight space.";
-      case BoardSize.regular:
-        return "The standard racing arena.";
-      case BoardSize.large:
-        return "Expansive space for complex maneuvers.";
-      case BoardSize.extraLarge:
-        return "Only for the most legendary pilots.";
-    }
-  }
-
-  Widget _buildStartButton(
+  @override
+  Widget build(
     BuildContext context,
   ) {
-    return Center(
-      child: SizedBox(
-        width: double.infinity,
-        height: 60,
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                30,
-              ),
-            ),
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
-          icon: const Icon(
-            Icons.rocket_launch,
-          ),
-          label: const Text(
-            'START GAME',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
-            ),
-          ),
-          onPressed: () {
-            final settings = GameSettings(
-              boardSize: _selectedBoardSize,
-              gameSpeed: _selectedGameSpeed,
-              soundOn: _soundOn,
-              volumeLevel: _volumeLevel.round(),
-              themeOption: _selectedTheme,
-            );
-            Navigator.of(
-              context,
-            ).push(
-              MaterialPageRoute(
-                builder:
-                    (
-                      context,
-                    ) => GamePage(
-                      settings: settings,
-                    ),
-              ),
-            );
-          },
         ),
-      ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.white38,
+          ),
+        ),
+      ],
     );
   }
 }

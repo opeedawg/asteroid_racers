@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'package:asteroid_racers/src/screens/authentication_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:asteroid_racers/src/screens/launch_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // <-- 1. New Import
+
+import 'package:asteroid_racers/src/screens/settings_screen.dart';
 
 class SplashScreen
     extends
@@ -105,25 +108,42 @@ class _SplashScreenState
     super.didChangeDependencies();
   }
 
+  // --- 2. The New Auth Gate Logic ---
   void _navigateToNext() async {
     if (!_canContinue ||
-        !mounted)
+        !mounted) {
       return;
+    }
 
-    // OPTIONAL: Resize window back to a wider format for the main game
-    // await windowManager.setSize(const Size(1280, 800));
-    // await windowManager.center();
+    // Check if the user is already logged in locally
+    final session = Supabase.instance.client.auth.currentSession;
 
-    Navigator.of(
-      context,
-    ).pushReplacement(
-      MaterialPageRoute(
-        builder:
-            (
-              context,
-            ) => const PilotRegistrationScreen(),
-      ),
-    );
+    if (session !=
+        null) {
+      // 3. User HAS a token -> Go straight to Game Settings
+      Navigator.of(
+        context,
+      ).pushReplacement(
+        MaterialPageRoute(
+          builder:
+              (
+                context,
+              ) => const SettingsScreen(),
+        ),
+      );
+    } else {
+      // 3. User has NO token -> Go to Authentication
+      Navigator.of(
+        context,
+      ).pushReplacement(
+        MaterialPageRoute(
+          builder:
+              (
+                context,
+              ) => const AuthenticationScreen(),
+        ),
+      );
+    }
   }
 
   @override
@@ -144,15 +164,12 @@ class _SplashScreenState
         behavior: HitTestBehavior.opaque,
         child: Stack(
           children: [
-            // Background Image fills the new vertical window
             Positioned.fill(
               child: Image.asset(
                 'assets/images/asteroidRacersSplash.png',
                 fit: BoxFit.cover,
               ),
             ),
-
-            // Prompt Area
             Positioned(
               bottom: 60,
               left: 0,

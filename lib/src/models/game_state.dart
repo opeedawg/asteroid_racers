@@ -1,6 +1,6 @@
 import 'dart:math'; // Import for Random
 import 'package:asteroid_racers/src/models/alien.dart';
-import 'package:asteroid_racers/src/models/enums.dart';
+import 'package:asteroid_racers/src/models/enums.dart'; // Keep this for TileType!
 import 'package:asteroid_racers/src/models/player.dart';
 
 class GameState {
@@ -8,7 +8,7 @@ class GameState {
   int width;
   int height;
   int alienCount;
-  final BoardSize boardSize;
+  final String boardSizeName; // Replaced BoardSize enum
   late List<
     List<
       TileType
@@ -20,7 +20,7 @@ class GameState {
   >
   aliens;
   final Player player1;
-  final Player player2;
+  final Player player2; // Restored to represent the AI Opponent!
   late Player currentPlayer;
   late Map<
     String,
@@ -34,18 +34,18 @@ class GameState {
 
   // --- Named Constructor ---
   GameState.newGame({
-    required this.boardSize,
+    required this.boardSizeName,
     required this.player1,
-    required this.player2,
+    required this.player2, // We will pass the AI player in from GamePage
     Player? startingPlayer,
   }) : width = _getWidthForSize(
-         boardSize,
+         boardSizeName,
        ),
        height = _getHeightForSize(
-         boardSize,
+         boardSizeName,
        ),
        alienCount = _getAlienCountSize(
-         boardSize,
+         boardSizeName,
        ) {
     scores = {
       player1.id: 0,
@@ -88,7 +88,7 @@ class GameState {
     ) {
       // 1. Handle all fixed-pattern columns
 
-      // Center: 2-1-2-1 pattern (A, A, E, A, A, E, ...)
+      // Center: 2-1-2-1 pattern
       if (x ==
           centerColumn) {
         for (
@@ -107,7 +107,7 @@ class GameState {
         continue;
       }
 
-      // Center-Adjacent AND Outer Columns: 1-2-1-2 pattern (E, A, A, E, A, A, ...)
+      // Center-Adjacent AND Outer Columns: 1-2-1-2 pattern
       if (x ==
               centerColumn -
                   1 ||
@@ -269,62 +269,65 @@ class GameState {
 
   // --- Static Helper Methods ---
   static int _getAlienCountSize(
-    BoardSize size,
+    String size,
   ) {
     switch (size) {
-      case BoardSize.small:
+      case 'Small':
         return 8;
-      case BoardSize.regular:
+      case 'Regular':
         return 12;
-      case BoardSize.large:
+      case 'Large':
         return 16;
-      case BoardSize.extraLarge:
+      case 'Extra Large':
         return 22;
+      default:
+        return 12;
     }
   }
 
   static int _getWidthForSize(
-    BoardSize size,
+    String size,
   ) {
     switch (size) {
-      case BoardSize.small:
+      case 'Small':
         return 13;
-      case BoardSize.regular:
+      case 'Regular':
         return 19;
-      case BoardSize.large:
+      case 'Large':
         return 25;
-      case BoardSize.extraLarge:
+      case 'Extra Large':
         return 35;
+      default:
+        return 19;
     }
   }
 
   static int _getHeightForSize(
-    BoardSize size,
+    String size,
   ) {
     switch (size) {
-      case BoardSize.small:
+      case 'Small':
         return 9;
-      case BoardSize.regular:
+      case 'Regular':
         return 13;
-      case BoardSize.large:
+      case 'Large':
         return 15;
-      case BoardSize.extraLarge:
+      case 'Extra Large':
         return 25;
+      default:
+        return 13;
     }
   }
 
-  // In lib/src/models/game_state.dart
-
-  /// Returns a deep copy of the current GameState. Critical for Minimax search.
+  // --- Cloning Logic ---
   GameState clone() {
-    // 1. Clone the Lists/Maps (Deep Copy is necessary for mutable properties)
     final newAliens = aliens
         .map(
           (
             a,
           ) => a.clone(),
         )
-        .toList(); // Assumes Alien has a clone() method
+        .toList();
     final newBoard = board
         .map(
           (
@@ -343,17 +346,16 @@ class GameState {
           int
         >.from(
           scores,
-        ); // Scores are simple enough for a shallow copy
+        );
 
     return GameState._clone(
-      this, // Pass the current state to copy static/simple fields
+      this,
       newBoard,
       newAliens,
       newScores,
     );
   }
 
-  // You will also need a private clone constructor:
   GameState._clone(
     GameState source,
     List<
@@ -374,13 +376,12 @@ class GameState {
   ) : width = source.width,
       height = source.height,
       alienCount = source.alienCount,
-      boardSize = source.boardSize,
+      boardSizeName = source.boardSizeName,
       board = clonedBoard,
       aliens = clonedAliens,
       scores = clonedScores,
-      // Copy other simple properties
       currentPlayer = source.currentPlayer,
       lastMovedColumn = source.lastMovedColumn,
-      player1 = source.player1, // Player objects themselves don't change during the game, so they can be referenced directly
-      player2 = source.player2;
+      player1 = source.player1,
+      player2 = source.player2; // Successfully references the AI player property
 }
