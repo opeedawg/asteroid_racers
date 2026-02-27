@@ -139,7 +139,16 @@ class GameState {
       int currentGap = 0;
       int currentAsteroidRun = 0;
       const int maxGap = 6;
-      const int maxAsteroidRun = 8;
+
+      // --- DYNAMIC WALL HEIGHT LOGIC ---
+      // This stops massive walls on small boards, but scales up slightly for huge boards.
+      final int maxAsteroidRun =
+          (height <=
+              13)
+          ? 3
+          : (height /
+                    4)
+                .floor();
 
       for (
         int y = 0;
@@ -154,7 +163,7 @@ class GameState {
           placeAsteroid = true;
         } else if (currentAsteroidRun >=
             maxAsteroidRun) {
-          placeAsteroid = false;
+          placeAsteroid = false; // Wall is too tall, force a gap!
         } else {
           placeAsteroid =
               _random.nextDouble() <
@@ -383,5 +392,5 @@ class GameState {
       currentPlayer = source.currentPlayer,
       lastMovedColumn = source.lastMovedColumn,
       player1 = source.player1,
-      player2 = source.player2; // Successfully references the AI player property
+      player2 = source.player2;
 }

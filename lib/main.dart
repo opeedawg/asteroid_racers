@@ -1,6 +1,7 @@
 import 'dart:io'
     show
         Platform;
+import 'package:asteroid_racers/src/services/subscription_service.dart';
 import 'package:flutter/foundation.dart'
     show
         kIsWeb;
@@ -19,6 +20,8 @@ main() async {
     url: 'http://127.0.0.1:54321', // Your local API URL
     anonKey: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH', // Your local Public Key
   );
+
+  await SubscriptionService().initialize();
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(

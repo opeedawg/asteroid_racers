@@ -10,7 +10,7 @@ import 'package:asteroid_racers/src/models/alien.dart';
 import 'package:asteroid_racers/src/models/game_feedback.dart';
 import 'package:asteroid_racers/src/models/game_settings.dart';
 import 'package:asteroid_racers/src/services/data_access.dart';
-import 'package:asteroid_racers/src/widgets/game_header.dart'; // Ensure this path is correct
+import 'package:asteroid_racers/src/widgets/game_header.dart';
 
 class GamePage
     extends
@@ -42,7 +42,6 @@ class _GamePageState
   int _selectedColumn = 0;
   final FocusNode _focusNode = FocusNode();
 
-  // Dynamic Background and AI State
   String _themeImagePath = 'assets/images/ThemeClassic.png';
   late Player _aiPlayer;
 
@@ -59,7 +58,6 @@ class _GamePageState
       forceRefresh: false,
     );
 
-    // 1. Map DB IDs back to their Lookup String Names
     final boardSizeItem = lookups.firstWhere(
       (
         l,
@@ -75,29 +73,23 @@ class _GamePageState
           widget.settings.themeId,
     );
 
-    // 2. Set the dynamic background image path
     _themeImagePath = 'assets/images/Theme${themeItem.name}.png';
 
-    // 3. Create the AI Opponent
     _aiPlayer = Player.ai(
       difficulty: AIDifficulty.normal,
-    ); // You can map the aiDifficultyId here later
+    );
 
-    // 4. Initialize the new GameState
     final gameState = GameState.newGame(
       boardSizeName: boardSizeItem.name,
       player1: player1,
       player2: _aiPlayer,
     );
 
-    // AI Engine Initialization
     _aiEngine = AIEngine(
       AIDifficulty.normal,
     );
-
-    // Controller Initialization
     _feedback = FeedbackController();
-    // 1. Fetch the string name from the DB
+
     final speedItem = lookups.firstWhere(
       (
         l,
@@ -106,7 +98,6 @@ class _GamePageState
           widget.settings.gameSpeedId,
     );
 
-    // 2. Map it to raw milliseconds for the engine
     int calculateDelayMs(
       String speedName,
     ) {
@@ -127,15 +118,13 @@ class _GamePageState
       speedItem.name,
     );
 
-    // 3. Inject it!
     _controller = GameController(
       gameState: gameState,
       feedback: _feedback,
-      stepDelayMs: engineDelay, // Passed as a pure integer!
+      stepDelayMs: engineDelay,
       aiEngine: _aiEngine,
     );
 
-    // Set up listeners
     _controller.addListener(
       _onGameStateChanged,
     );
@@ -147,33 +136,31 @@ class _GamePageState
       ),
     );
 
-    // Schedule settling *after* the first frame is built
     WidgetsBinding.instance.addPostFrameCallback(
       (
         _,
       ) async {
         if (mounted) {
-          await _controller.settleBoard();
-          _findNextAvailableLever(
-            1,
-          );
-
           setState(
             () {
               _isInitializing = false;
             },
           );
 
-          // --- START AI TURN IF NEEDED ---
-          if (_controller.gameState.currentPlayer.isAI) {
-            _controller.handleAITurn();
-          }
+          await Future.delayed(
+            const Duration(
+              milliseconds: 1000,
+            ),
+          );
+          await _controller.settleBoard();
+          _findNextAvailableLever(
+            1,
+          );
         }
       },
     );
   }
 
-  // --- UI Logic Methods ---
   void _onGameStateChanged() {
     if (_isInitializing) return;
     setState(
@@ -215,15 +202,13 @@ class _GamePageState
     super.dispose();
   }
 
-  // --- Keyboard Event Handler ---
   void _handleKeyEvent(
     KeyEvent event,
   ) {
     if (_controller.isProcessingMove ||
         event
-            is! KeyDownEvent) {
+            is! KeyDownEvent)
       return;
-    }
 
     if (event.logicalKey ==
         LogicalKeyboardKey.arrowLeft) {
@@ -283,6 +268,15 @@ class _GamePageState
     }
   }
 
+  double _getCellWidth() {
+    return MediaQuery.of(
+              context,
+            ).size.height <
+            600
+        ? 16.0
+        : 24.0;
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -292,13 +286,11 @@ class _GamePageState
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
         backgroundColor: Colors.black,
-        // Using a Stack to place the UI over the dynamic background image
         body: Stack(
           children: [
-            // 1. The Dynamic Theme Background
             Positioned.fill(
               child: Opacity(
-                opacity: 0.6, // Darken slightly so the text/board remains readable
+                opacity: 0.6,
                 child: Image.asset(
                   _themeImagePath,
                   fit: BoxFit.cover,
@@ -306,65 +298,92 @@ class _GamePageState
                 ),
               ),
             ),
-
-            // 2. The Game UI with the Shared Header
             CustomScrollView(
               slivers: [
-                GameHeader(
+                const GameHeader(
                   title: "MATCH ENGAGED",
-                  pilotTag: widget.settings.player1.namerTag,
-                  // Disable profile/leaderboard popups during an active game, or wire them up to pause the game
-                  onProfilePressed: () => debugPrint(
-                    'Profile pressed in-game',
-                  ),
-                  onLeaderboardPressed: () => debugPrint(
-                    'Leaderboard pressed in-game',
-                  ),
                 ),
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 20,
+                    ), // Leave room at the bottom
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (_isInitializing)
-                          const Padding(
-                            padding: EdgeInsets.all(
-                              32.0,
-                            ),
-                            child: CircularProgressIndicator(
-                              color: Colors.cyanAccent,
-                            ),
+                          const CircularProgressIndicator(
+                            color: Colors.cyanAccent,
                           ),
                         if (!_isInitializing) ...[
-                          _buildScoreDebugPanel(),
-                          // Adding a slight background behind the board for readability
-                          Container(
-                            padding: const EdgeInsets.all(
-                              16,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(
-                                alpha: 0.5,
+                          // --- GESTURE DETECTOR WRAPPER ---
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onVerticalDragEnd:
+                                (
+                                  details,
+                                ) {
+                                  if (_controller.isProcessingMove) return;
+                                  // Swipe velocity < 0 means swiped UP
+                                  if (details.primaryVelocity! <
+                                      0) {
+                                    _controller.makeMove(
+                                      _selectedColumn,
+                                      MoveDirection.up,
+                                    );
+                                  } else {
+                                    _controller.makeMove(
+                                      _selectedColumn,
+                                      MoveDirection.down,
+                                    );
+                                  }
+                                },
+                            onHorizontalDragEnd:
+                                (
+                                  details,
+                                ) {
+                                  if (_controller.isProcessingMove) return;
+                                  // Swipe velocity < 0 means swiped LEFT
+                                  if (details.primaryVelocity! <
+                                      0) {
+                                    _findNextAvailableLever(
+                                      -1,
+                                    );
+                                  } else {
+                                    _findNextAvailableLever(
+                                      1,
+                                    );
+                                  }
+                                },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
                               ),
-                              borderRadius: BorderRadius.circular(
-                                16,
-                              ),
-                              border: Border.all(
-                                color: Colors.cyanAccent.withValues(
-                                  alpha: 0.3,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(
+                                  alpha: 0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  16,
+                                ),
+                                border: Border.all(
+                                  color: Colors.cyanAccent.withValues(
+                                    alpha: 0.3,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Column(
-                              children: [
-                                ..._buildBoardWidgets(),
-                                const SizedBox(
-                                  height: 20,
-                                ),
-                                _buildLeverRow(),
-                                _buildSelectorRow(),
-                              ],
+                              child: Column(
+                                children: [
+                                  ..._buildBoardWidgets(),
+                                  const SizedBox(
+                                    height: 10,
+                                  ),
+                                  _buildLeverRow(),
+                                  _buildSelectorRow(),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -380,8 +399,6 @@ class _GamePageState
     );
   }
 
-  // --- Board Renderer ---
-  // --- Board Renderer ---
   List<
     Widget
   >
@@ -389,32 +406,35 @@ class _GamePageState
     final List<
       Widget
     >
-    rows = [];
+    columnWidgets = [];
     final board = _controller.gameState.board;
     final aliens = _controller.gameState.aliens;
     final width = _controller.gameState.width;
     final height = _controller.gameState.height;
 
-    // Slightly increase cell width if you want the art to be bigger
-    const double cellWidth = 24.0;
-
+    final double cellWidth = _getCellWidth();
     final Player p2 = _aiPlayer;
+    final dummyPlayer = Player.human(
+      namerTag: 'empty_tile',
+    );
 
+    // Loop through COLUMNS first (x) instead of rows (y)
     for (
-      int y = 0;
-      y <
-          height;
-      y++
+      int x = 0;
+      x <
+          width;
+      x++
     ) {
       final List<
         Widget
       >
-      cells = [];
+      columnCells = [];
+
       for (
-        int x = 0;
-        x <
-            width;
-        x++
+        int y = 0;
+        y <
+            height;
+        y++
       ) {
         final alien = aliens.firstWhere(
           (
@@ -425,48 +445,26 @@ class _GamePageState
               a.y ==
                   y,
           orElse: () => Alien(
-            // Use the .ai constructor instead of manually setting PlayerType
-            player: Player.ai(
-              difficulty: AIDifficulty.easy,
-            ),
+            player: dummyPlayer,
             x: -1,
             y: -1,
           ),
         );
 
-        Widget cellContent = const SizedBox.shrink(); // Empty space by default
+        Widget cellContent = const SizedBox.shrink();
 
         if (alien.x !=
             -1) {
-          if (alien.player.id ==
-              p2.id) {
-            // AI Opponent (Facing Left)
-            // Ensure filename matches your assets list exactly!
-            cellContent = Image.asset(
-              'assets/images/AlientRed.png',
-              fit: BoxFit.contain,
-            );
-          } else {
-            // Pilot (Facing Right)
-            cellContent = Image.asset(
-              'assets/images/AlientBlue.png',
-              fit: BoxFit.contain,
-            );
-          }
+          cellContent = Image.asset(
+            alien.player.id ==
+                    p2.id
+                ? 'assets/images/AlienRed.png'
+                : 'assets/images/AlienBlue.png',
+            fit: BoxFit.contain,
+          );
         } else if (board[y][x] ==
             TileType.asteroid) {
-          // Alternate between Crater 1 and 2 for visual variety
-          String craterVariation =
-              ((x +
-                          y) %
-                      2 ==
-                  0)
-              ? '1'
-              : '2';
-
-          // Fallback variable in case _themeName isn't set yet
-          // In _initializeGame(), make sure you added: _themeName = themeItem.name;
-          String themeToUse =
+          String theme =
               _themeImagePath.contains(
                 'Nebula',
               )
@@ -476,33 +474,88 @@ class _GamePageState
                 )
               ? 'Retro'
               : 'Classic';
-
+          String variation =
+              ((x +
+                          y) %
+                      2 ==
+                  0)
+              ? '1'
+              : '2';
           cellContent = Image.asset(
-            'assets/images/Crater$themeToUse$craterVariation.png',
+            'assets/images/Crater$theme$variation.png',
             fit: BoxFit.contain,
           );
         }
 
-        cells.add(
+        columnCells.add(
           Container(
             width: cellWidth,
-            height: cellWidth, // Force a square aspect ratio for the art
+            height: cellWidth,
             alignment: Alignment.center,
             child: cellContent,
           ),
         );
       }
-      rows.add(
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: cells,
+
+      // --- NEW: Individual Column Gesture Zone ---
+      columnWidgets.add(
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            // Selecting the column on tap/click
+            final state = GameController.getLeverState(
+              x,
+              _controller.gameState,
+            );
+            if (state ==
+                LeverState.available) {
+              setState(
+                () => _selectedColumn = x,
+              );
+            }
+          },
+          onVerticalDragEnd:
+              (
+                details,
+              ) {
+                if (_controller.isProcessingMove) return;
+
+                // Immediately select this column if they start dragging it
+                setState(
+                  () => _selectedColumn = x,
+                );
+
+                if (details.primaryVelocity! <
+                    0) {
+                  _controller.makeMove(
+                    x,
+                    MoveDirection.up,
+                  );
+                } else if (details.primaryVelocity! >
+                    0) {
+                  _controller.makeMove(
+                    x,
+                    MoveDirection.down,
+                  );
+                }
+              },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: columnCells,
+          ),
         ),
       );
     }
-    return rows;
+
+    // Return the columns wrapped in a Row so they stand side-by-side
+    return [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: columnWidgets,
+      ),
+    ];
   }
 
-  // --- Lever Row Renderer ---
   Widget _buildLeverRow() {
     final List<
       Widget
@@ -510,7 +563,7 @@ class _GamePageState
     levers = [];
     final width = _controller.gameState.width;
     final gameState = _controller.gameState;
-    const double cellWidth = 24.0;
+    final double cellWidth = _getCellWidth();
 
     for (
       int x = 0;
@@ -554,14 +607,13 @@ class _GamePageState
     );
   }
 
-  // --- Selector Row Renderer ---
   Widget _buildSelectorRow() {
     final List<
       Widget
     >
     selectors = [];
     final width = _controller.gameState.width;
-    const double cellWidth = 24.0;
+    final double cellWidth = _getCellWidth();
 
     for (
       int x = 0;
@@ -572,7 +624,7 @@ class _GamePageState
       String content = " ";
       if (x ==
           _selectedColumn) {
-        content = "^"; // Our "hand" selector
+        content = "^";
       }
       selectors.add(
         Container(
@@ -592,87 +644,6 @@ class _GamePageState
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: selectors,
-    );
-  }
-
-  // --- Score Debug Panel ---
-  Widget _buildScoreDebugPanel() {
-    final Player p1 = widget.settings.player1;
-    final Player p2 = _aiPlayer;
-
-    final double scoreDiff = _aiEngine.getCurrentScoreDifference(
-      _controller.gameState,
-    );
-
-    String winningPlayer;
-    Color winningColor;
-
-    if (scoreDiff >
-        0) {
-      winningPlayer = p1.namerTag;
-      winningColor = Colors.blueAccent;
-    } else if (scoreDiff <
-        0) {
-      winningPlayer = 'AI Opponent';
-      winningColor = Colors.redAccent;
-    } else {
-      winningPlayer = 'TIE';
-      winningColor = Colors.white;
-    }
-
-    final int p1Score =
-        _controller.gameState.scores[p1.id] ??
-        0;
-    final int p2Score =
-        _controller.gameState.scores[p2.id] ??
-        0;
-
-    return Padding(
-      padding: const EdgeInsets.all(
-        16.0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'PILOT: $p1Score',
-                style: const TextStyle(
-                  color: Colors.blueAccent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(
-                width: 40,
-              ),
-              Text(
-                'AI: $p2Score',
-                style: const TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(
-            height: 8,
-          ),
-          Center(
-            child: Text(
-              'Advantage: $winningPlayer',
-              style: TextStyle(
-                color: winningColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

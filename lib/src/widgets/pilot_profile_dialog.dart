@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:asteroid_racers/src/services/data_access.dart';
-import 'package:intl/intl.dart'; // For date formatting
 
 class PilotProfileDialog
     extends
@@ -21,152 +19,153 @@ class PilotProfileDialog
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(
-        horizontal: 20,
+        horizontal: 16,
+        vertical: 24,
       ),
-      child:
-          FutureBuilder<
-            Map<
-              String,
-              dynamic
-            >
-          >(
-            future: DataAccess().getDetailedPilotStats(),
-            builder:
-                (
-                  context,
-                  snapshot,
-                ) {
-                  if (!snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.cyanAccent,
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(
+          24,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(
+            alpha: 0.9,
+          ),
+          borderRadius: BorderRadius.circular(
+            24,
+          ),
+          border: Border.all(
+            color: Colors.blueAccent.withValues(
+              alpha: 0.4,
+            ),
+            width: 2,
+          ),
+          image: const DecorationImage(
+            image: AssetImage(
+              'assets/images/ProfileBackground.png',
+            ),
+            fit: BoxFit.cover,
+            opacity: 0.15,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.account_circle,
+              size: 64,
+              color: Colors.blueAccent,
+            ),
+            const SizedBox(
+              height: 16,
+            ),
+            const Text(
+              'PILOT DOSSIER',
+              style: TextStyle(
+                color: Colors.blueAccent,
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                letterSpacing: 2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Divider(
+              color: Colors.white.withValues(
+                alpha: 0.1,
+              ),
+              height: 32,
+              thickness: 1,
+            ),
+            Text(
+              pilotTag.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(
+              height: 32,
+            ),
+
+            // --- Unified Action Buttons ---
+            Column(
+              children: [
+                // 1. The Danger/Logout Action
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent.withValues(
+                        alpha: 0.1,
                       ),
-                    );
-                  }
-
-                  final stats = snapshot.data!;
-                  final DateTime joinedDate = DateTime.parse(
-                    stats['joined'],
-                  );
-
-                  return Container(
-                    width: 400,
-                    padding: const EdgeInsets.all(
-                      24,
+                      foregroundColor: Colors.redAccent,
+                      side: BorderSide(
+                        color: Colors.redAccent.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(
-                        alpha: 0.85,
+                    icon: const Icon(
+                      Icons.logout,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'LOGOUT',
+                      style: TextStyle(
+                        letterSpacing: 1.5,
                       ),
-                      borderRadius: BorderRadius.circular(
-                        20,
+                    ),
+                    onPressed: onLogout,
+                  ),
+                ),
+                const SizedBox(
+                  height: 12,
+                ),
+
+                // 2. The Safe/Dismiss Action
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.cyanAccent.withValues(
+                        alpha: 0.1,
                       ),
-                      border: Border.all(
+                      foregroundColor: Colors.cyanAccent,
+                      side: BorderSide(
                         color: Colors.cyanAccent.withValues(
                           alpha: 0.5,
                         ),
-                        width: 2,
                       ),
-                      image: const DecorationImage(
-                        image: AssetImage(
-                          'assets/images/ProfileBackground.png',
-                        ),
-                        fit: BoxFit.cover,
-                        opacity: 0.2, // Adjust this if you want the alien to be more or less visible
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
                       ),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'PILOT PROFILE: ${pilotTag.toUpperCase()}',
-                          style: const TextStyle(
-                            color: Colors.cyanAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const Divider(
-                          color: Colors.white24,
-                          height: 32,
-                        ),
-
-                        _buildStatRow(
-                          'ENLISTED',
-                          DateFormat(
-                            'MMMM dd, yyyy',
-                          ).format(
-                            joinedDate,
-                          ),
-                        ),
-                        _buildStatRow(
-                          'TOTAL SORTIES',
-                          '${stats['totalMatches']}',
-                        ),
-                        _buildStatRow(
-                          'WIN RATE',
-                          '${stats['winRate']}%',
-                        ),
-
-                        const SizedBox(
-                          height: 32,
-                        ),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.redAccent.withValues(
-                                alpha: 0.8,
-                              ),
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: const Icon(
-                              Icons.logout,
-                            ),
-                            label: const Text(
-                              'LOG OUT',
-                            ),
-                            onPressed: onLogout,
-                          ),
-                        ),
-                      ],
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
                     ),
-                  );
-                },
-          ),
-    );
-  }
-
-  Widget _buildStatRow(
-    String label,
-    String value,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 8.0,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+                    label: const Text(
+                      'DISMISS',
+                      style: TextStyle(
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(
+                        context,
+                      ).pop();
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

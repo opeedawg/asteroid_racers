@@ -76,7 +76,7 @@ class _SplashScreenState
 
     Future.delayed(
       const Duration(
-        seconds: 3,
+        seconds: 1,
       ),
       () {
         if (mounted) {

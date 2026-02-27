@@ -172,26 +172,6 @@ class UniversalLookupSlider
                     ),
               ),
             ),
-            // MIN/MAX LABELS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  items.first.name,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white38,
-                  ),
-                ),
-                Text(
-                  items.last.name,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white38,
-                  ),
-                ),
-              ],
-            ),
           ] else ...[
             const Center(
               child: Padding(

@@ -1,15 +1,12 @@
 import 'package:asteroid_racers/src/models/game_settings.dart';
 import 'package:asteroid_racers/src/models/player.dart';
-import 'package:asteroid_racers/src/screens/authentication_screen.dart';
 import 'package:asteroid_racers/src/screens/game_page.dart';
 import 'package:asteroid_racers/src/widgets/game_header.dart';
-import 'package:asteroid_racers/src/widgets/pilot_profile_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:asteroid_racers/src/models/lookup_item.dart';
 import 'package:asteroid_racers/src/widgets/space_background.dart';
 import 'package:asteroid_racers/src/widgets/universal_lookup_slider.dart';
 import 'package:asteroid_racers/src/services/data_access.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Required for signOut
 
 class SettingsScreen
     extends
@@ -244,47 +241,6 @@ class _SettingsScreenState
     }
   }
 
-  void _showPilotProfile(
-    BuildContext context,
-  ) {
-    showDialog(
-      context: context,
-      builder:
-          (
-            context,
-          ) => PilotProfileDialog(
-            pilotTag:
-                _pilotTag ??
-                'Unknown',
-            onLogout: () async {
-              await Supabase.instance.client.auth.signOut();
-
-              if (context.mounted) {
-                // 1. Close the dialog popup
-                Navigator.of(
-                  context,
-                ).pop();
-
-                // 2. Wipe the navigation stack and go to Auth Screen
-                Navigator.of(
-                  context,
-                ).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder:
-                        (
-                          context,
-                        ) => const AuthenticationScreen(),
-                  ),
-                  (
-                    route,
-                  ) => false, // This false means "destroy all previous routes"
-                );
-              }
-            },
-          ),
-    );
-  }
-
   @override
   Widget build(
     BuildContext context,
@@ -303,13 +259,6 @@ class _SettingsScreenState
                   slivers: [
                     GameHeader(
                       title: 'Game Setup',
-                      pilotTag: _pilotTag,
-                      onProfilePressed: () => _showPilotProfile(
-                        context,
-                      ),
-                      onLeaderboardPressed: () {
-                        /* Navigate to Leaderboard */
-                      },
                     ),
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(
@@ -319,9 +268,6 @@ class _SettingsScreenState
                       sliver: SliverList(
                         delegate: SliverChildListDelegate(
                           [
-                            // 1. The Dynamic Premium Upsell Banner
-                            if (!_db.isPremium()) _buildPremiumBanner(),
-
                             // 2. The Data-Driven Sliders
                             UniversalLookupSlider(
                               title: 'BOARD SIZE',
@@ -391,41 +337,44 @@ class _SettingsScreenState
                                   ),
                             ),
 
-                            const SizedBox(
-                              height: 32,
-                            ),
-
                             // 3. The New Primary Action Button (Restored to the body)
                             Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: 40.0,
-                              ),
+                              padding: const EdgeInsets.all(
+                                16.0,
+                              ), // Gives it breathing room from the edges
                               child: SizedBox(
                                 width: double.infinity,
-                                height: 60,
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green.shade700,
-                                    foregroundColor: Colors.white,
-                                    elevation: 8,
-                                    shadowColor: Colors.greenAccent.withValues(
-                                      alpha: 0.4,
+                                    backgroundColor: Colors.greenAccent.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    foregroundColor: Colors.greenAccent,
+                                    side: BorderSide(
+                                      color: Colors.greenAccent.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      width: 2,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(
-                                        30,
+                                        16,
                                       ),
                                     ),
                                   ),
                                   icon: const Icon(
                                     Icons.rocket_launch,
+                                    size: 24,
                                   ),
                                   label: const Text(
                                     'START MATCH',
                                     style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
                                       letterSpacing: 2,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   onPressed: _startGame,
@@ -440,89 +389,6 @@ class _SettingsScreenState
                 ),
         ),
       ),
-    );
-  }
-
-  Widget _buildPremiumBanner() {
-    return Container(
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
-      padding: const EdgeInsets.all(
-        12,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.amber.withValues(
-          alpha: 0.1,
-        ),
-        borderRadius: BorderRadius.circular(
-          8,
-        ),
-        border: Border.all(
-          color: Colors.amber.withValues(
-            alpha: 0.5,
-          ),
-        ),
-      ),
-      child: const Row(
-        children: [
-          Icon(
-            Icons.stars,
-            color: Colors.amber,
-            size: 20,
-          ),
-          SizedBox(
-            width: 12,
-          ),
-          Expanded(
-            child: Text(
-              'FREE TIER: Upgrade for XL Boards, Master AI, and Nebula Themes!',
-              style: TextStyle(
-                color: Colors.amber,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Helper widget outside the State class
-class _StatTile
-    extends
-        StatelessWidget {
-  final String label;
-  final String value;
-  const _StatTile({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Colors.white38,
-          ),
-        ),
-      ],
     );
   }
 }

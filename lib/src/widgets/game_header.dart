@@ -1,87 +1,240 @@
+import 'package:asteroid_racers/src/screens/authentication_screen.dart';
+import 'package:asteroid_racers/src/services/subscription_service.dart';
+import 'package:asteroid_racers/src/widgets/about_game_dialog.dart';
+import 'package:asteroid_racers/src/widgets/help_dialog.dart';
+import 'package:asteroid_racers/src/widgets/leader_board_dialog.dart';
+import 'package:asteroid_racers/src/widgets/pilot_profile_dialog.dart';
+import 'package:asteroid_racers/src/services/data_access.dart'; // Add your DataAccess import
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameHeader
     extends
         StatelessWidget {
   final String title;
-  final String? pilotTag;
-  final VoidCallback onProfilePressed;
-  final VoidCallback? onLeaderboardPressed;
-  final List<
-    Widget
-  >?
-  extraActions;
 
   const GameHeader({
     super.key,
     required this.title,
-    this.pilotTag,
-    required this.onProfilePressed,
-    this.onLeaderboardPressed,
-    this.extraActions,
   });
 
   @override
   Widget build(
     BuildContext context,
   ) {
+    // --- DERIVE SESSION STATE INTERNALLY ---
+    // Update these two lines to match whatever your singleton properties are actually named!
+    final String currentPilotTag = DataAccess().getPilotTag();
+    final bool isUserPremium = DataAccess().isPremium();
+
     return SliverAppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      pinned: true,
+      centerTitle: true,
+      expandedHeight: isUserPremium
+          ? 80.0
+          : 120.0,
+
+      // 1. The Dynamic Title Area
       title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            title.toUpperCase(),
+            title,
             style: const TextStyle(
-              letterSpacing: 3,
+              color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 18,
+              letterSpacing: 2,
             ),
           ),
-          if (pilotTag !=
-              null)
-            Text(
-              'PILOT: ${pilotTag!.toUpperCase()}',
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.blueAccent,
-                letterSpacing: 1.5,
+          Text(
+            'PILOT: ${currentPilotTag.toUpperCase()}',
+            style: TextStyle(
+              color: Colors.cyanAccent.withValues(
+                alpha: 0.8,
               ),
+              fontSize: 12,
+              letterSpacing: 1.5,
             ),
+          ),
         ],
       ),
-      backgroundColor: Colors.transparent,
-      centerTitle: false,
-      toolbarHeight: 80,
-      floating: true,
-      pinned: false, // Set to true if you want it to stay visible while scrolling
+
+      // 2. The Universal Icon Actions
       actions: [
-        if (onLeaderboardPressed !=
-            null)
-          IconButton(
-            icon: const Icon(
-              Icons.leaderboard_rounded,
-              color: Colors.amberAccent, // Gold for ranking/competition
-              size: 28,
-            ),
-            tooltip: 'Rankings',
-            onPressed: onLeaderboardPressed,
+        IconButton(
+          icon: const Icon(
+            Icons.info_outline,
+            color: Colors.amberAccent,
           ),
+          tooltip: 'About & Lore',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder:
+                  (
+                    context,
+                  ) => const AboutGameDialog(),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.help_outline,
+            color: Colors.greenAccent,
+          ),
+          tooltip: 'How to Play',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder:
+                  (
+                    context,
+                  ) => const HelpDialog(),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.stars_outlined,
+            color: Colors.pink,
+          ),
+          tooltip: 'Global Leaderboard',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder:
+                  (
+                    context,
+                  ) => const LeaderboardDialog(),
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(
             Icons.account_circle_outlined,
-            color: Colors.blueAccent, // Matches your "Pilot Tag" color scheme
-            size: 28,
+            color: Colors.blueAccent,
           ),
           tooltip: 'Pilot Profile',
-          onPressed: onProfilePressed,
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder:
+                  (
+                    context,
+                  ) => PilotProfileDialog(
+                    pilotTag: currentPilotTag,
+                    onLogout: () async {
+                      await Supabase.instance.client.auth.signOut();
+
+                      if (context.mounted) {
+                        Navigator.of(
+                          context,
+                        ).pop();
+                        Navigator.of(
+                          context,
+                        ).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder:
+                                (
+                                  context,
+                                ) => const AuthenticationScreen(),
+                          ),
+                          (
+                            route,
+                          ) => false,
+                        );
+                      }
+                    },
+                  ),
+            );
+          },
         ),
-        if (extraActions !=
-            null)
-          ...extraActions!,
         const SizedBox(
           width: 8,
         ),
       ],
+
+      // 3. The Premium Banner
+      bottom: isUserPremium
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(
+                40,
+              ),
+              child: GestureDetector(
+                onTap: () async {
+                  debugPrint(
+                    'Fetching premium packages...',
+                  );
+
+                  // 1. Fetch the packages from RevenueCat
+                  final packages = await SubscriptionService().fetchOffers();
+
+                  if (packages.isNotEmpty) {
+                    // For now, let's just grab the first package (e.g., Lifetime Unlock)
+                    final packageToBuy = packages.first;
+
+                    // 2. Trigger the native Apple/Google bottom sheet!
+                    final success = await SubscriptionService().purchasePackage(
+                      packageToBuy,
+                    );
+
+                    if (success) {
+                      debugPrint(
+                        'PURCHASE SUCCESSFUL! User is now Premium.',
+                      );
+                      // TODO: Tell DataAccess to update the database and refresh the UI!
+                    }
+                  } else {
+                    debugPrint(
+                      'No packages found. Check RevenueCat dashboard setup.',
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  color: Colors.amber.withValues(
+                    alpha: 0.2,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.star,
+                        color: Colors.amber,
+                        size: 16,
+                      ),
+                      const SizedBox(
+                        width: 8,
+                      ),
+                      Text(
+                        'UPGRADE TO PREMIUM',
+                        style: TextStyle(
+                          color: Colors.amber.shade200,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 8,
+                      ),
+                      const Icon(
+                        Icons.star,
+                        color: Colors.amber,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
     );
   }
 }

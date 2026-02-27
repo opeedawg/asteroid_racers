@@ -290,6 +290,14 @@ class GameController
   bool _canAlienFall(
     Alien alien,
   ) {
+    // --- NEW FIX: If the alien is off the board, gravity no longer applies! ---
+    if (alien.x <
+            0 ||
+        alien.x >=
+            gameState.width) {
+      return false;
+    }
+
     final int targetY =
         alien.y +
         1;
@@ -374,26 +382,31 @@ class GameController
     Alien alien,
     int direction,
   ) {
-    final int targetX =
-        alien.x +
-        direction;
-    final int targetY = alien.y;
+    // --- NEW FIX: If alien is already off the board, it cannot move! ---
     if (alien.x <
             0 ||
         alien.x >=
             gameState.width) {
       return false;
     }
+
+    final int targetX =
+        alien.x +
+        direction;
+    final int targetY = alien.y;
+
     if (targetX <
             0 ||
         targetX >=
             gameState.width) {
       return true;
     }
+
     if (gameState.board[targetY][targetX] ==
         TileType.asteroid) {
       return false;
     }
+
     final isBlockedByAlien = gameState.aliens.any(
       (
         other,
@@ -405,7 +418,11 @@ class GameController
           other.y ==
               targetY,
     );
-    if (isBlockedByAlien) return false;
+
+    if (isBlockedByAlien) {
+      return false;
+    }
+
     return true;
   }
 
