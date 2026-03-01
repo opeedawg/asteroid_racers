@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:asteroid_racers/src/services/logger_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
@@ -20,9 +22,8 @@ class SubscriptionService {
   >
   initialize() async {
     // 1. Bypass initialization if we are on Web or Desktop!
-    if (kIsWeb ||
-        Platform.isWindows ||
-        Platform.isLinux) {
+    if (!Platform.isAndroid &&
+        !Platform.isIOS) {
       debugPrint(
         'RevenueCat is not supported on this platform. Bypassing init.',
       );
@@ -57,26 +58,116 @@ class SubscriptionService {
 
   /// Fetches the available packages (e.g., Lifetime Premium, Monthly, etc.)
   Future<
-    List<
-      Package
-    >
+    void
   >
-  fetchOffers() async {
+  fetchOffers(
+    BuildContext context,
+  ) async {
     try {
-      final offerings = await Purchases.getOfferings();
+      Offerings offerings = await Purchases.getOfferings();
+
       if (offerings.current !=
               null &&
-          offerings.current!.availablePackages.isNotEmpty) {
-        return offerings.current!.availablePackages;
+          offerings.current!.lifetime !=
+              null) {
+        PurchaseResult result = await Purchases.purchase(
+          PurchaseParams.package(
+            offerings.current!.lifetime!,
+          ),
+        );
+
+        if (result.customerInfo.entitlements.all["premium"]?.isActive ==
+            true) {
+          // Check if the user is still on this screen before showing dialog
+          if (!context.mounted) return;
+
+          showDialog(
+            context: context,
+            builder:
+                (
+                  BuildContext context,
+                ) => AlertDialog(
+                  backgroundColor: const Color(
+                    0xFF1E293B,
+                  ), // Match your sci-fi theme
+                  title: const Text(
+                    "VIP Unlocked",
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                  content: const Text(
+                    "Purchase successful! Welcome to the VIP club.",
+                    style: TextStyle(
+                      color: Colors.white70,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      child: const Text(
+                        "OK",
+                        style: TextStyle(
+                          color: Colors.blueAccent,
+                        ),
+                      ),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pop(),
+                    ),
+                  ],
+                ),
+          );
+        }
       }
-      return [];
     } on PlatformException catch (
-      e
+      e,
+      stack
     ) {
-      debugPrint(
-        'Error fetching offers: ${e.message}',
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        builder:
+            (
+              BuildContext context,
+            ) => AlertDialog(
+              backgroundColor: const Color(
+                0xFF1E293B,
+              ),
+              title: const Text(
+                "Transmission Failed",
+                style: TextStyle(
+                  color: Colors.redAccent,
+                ),
+              ),
+              content: Text(
+                e.message ??
+                    "An unknown error occurred.",
+                style: const TextStyle(
+                  color: Colors.white70,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: const Text(
+                    "Dismiss",
+                    style: TextStyle(
+                      color: Colors.blueAccent,
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop(),
+                ),
+              ],
+            ),
       );
-      return [];
+
+      // Silently send the exact error and stack trace to your Supabase command center
+      await LoggerService.logError(
+        message: "RevenueCat Purchase Failed: ${e.message}",
+        stackTrace: stack.toString(),
+      );
     }
   }
 

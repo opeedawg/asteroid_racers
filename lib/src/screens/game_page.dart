@@ -207,8 +207,9 @@ class _GamePageState
   ) {
     if (_controller.isProcessingMove ||
         event
-            is! KeyDownEvent)
+            is! KeyDownEvent) {
       return;
+    }
 
     if (event.logicalKey ==
         LogicalKeyboardKey.arrowLeft) {
@@ -304,7 +305,7 @@ class _GamePageState
                   title: "MATCH ENGAGED",
                 ),
                 SliverFillRemaining(
-                  hasScrollBody: false,
+                  hasScrollBody: true,
                   child: Padding(
                     padding: const EdgeInsets.only(
                       bottom: 20,

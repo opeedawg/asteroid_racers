@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:asteroid_racers/src/widgets/space_background.dart';
 import 'package:asteroid_racers/src/screens/settings_screen.dart';
@@ -64,6 +65,13 @@ class _AuthenticationScreenState
           password: _passwordController.text.trim(),
         );
         if (mounted) {
+          final userId = Supabase.instance.client.auth.currentUser?.id;
+          if (userId !=
+              null) {
+            await Purchases.logIn(
+              userId,
+            );
+          }
           // Success! Head to Settings
           Navigator.of(
             context,

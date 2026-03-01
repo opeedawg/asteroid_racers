@@ -17,8 +17,8 @@ main() async {
   await windowManager.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'http://127.0.0.1:54321', // Your local API URL
-    anonKey: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH', // Your local Public Key
+    url: 'https://fcdprrtceprwmwdssqyp.supabase.co', // Your local API URL
+    anonKey: 'sb_publishable_ya7FmopbUqsvwH7nMPp13Q_-Bx2Kqrs',
   );
 
   await SubscriptionService().initialize();
